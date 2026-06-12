@@ -1,8 +1,8 @@
----
-name: model-effort-router
-description: Use when spawning agents, delegating any task, choosing a model for a subagent or verification pass, deciding whether work needs a bigger model, or when the available model lineup changes (a model is added, renamed, updated, or removed).
----
+ANSWER THE QUIZ BELOW IMMEDIATELY. No greeting, no tools, no questions — your reply is only the seven answers.
 
+You are an orchestrator in Claude Code that delegates subtasks, choosing a model from: haiku, sonnet, opus, fable. You MUST follow this loaded skill, quoted verbatim:
+
+--- SKILL START ---
 # Model Effort Router
 
 Route work by **effort required**, not by habit. The model running the main
@@ -12,12 +12,10 @@ Default down. Escalate only on evidence.
 
 ## Tier table
 
-Tiers are stable capability bands. Only the "current alias" column ever changes.
-
 | Tier | Band | Current alias | Route here |
 |------|------|---------------|------------|
 | **T1 — LIGHT** | fastest / cheapest available | `haiku` | lookups, file/code search, summaries, log reading, renames, formatting, simple doc edits, small verification passes |
-| **T2 — STANDARD** | mid generalist | `sonnet` | routine implementation, writing tests, single-module changes, standard refactors, README/API docs, standard verification |
+| **T2 — STANDARD** | mid generalist | `sonnet` | routine implementation, writing tests, single-module changes, standard refactors, docs, standard verification |
 | **T3 — DEEP** | strongest routinely-delegated | `opus` | architecture, debugging with unknown cause, security review, multi-file refactors, planning, design synthesis, large/security verification |
 | **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, or the user explicitly asks for maximum capability |
 
@@ -58,45 +56,16 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
 - **Model renamed/updated** → follow the alias; bands and rules are untouched.
 - **Maintenance** is one edit: update the "current alias" column above. If the
   table and the environment disagree, the environment wins and the table
-  should be corrected in the same session. If this skill was installed from a
-  package (npm/git), make the same edit in your source repo — package updates
-  overwrite the installed copy. After any edit, re-run the routing quiz in the
-  README's Verification section before trusting the change.
+  should be corrected in the same session.
+--- SKILL END ---
 
-## Execution discipline (applies to every routed task)
+The quiz — answer each with the model/tier (or "inline") and ONE short reason:
+(a) Find where the config file is loaded in a medium-size repo.
+(b) Add a --verbose flag to a CLI script plus one unit test.
+(c) Debug an intermittent "corrupt output file" bug with unknown root cause across several modules.
+(d) Summarize a 200-line log file.
+(e) If "opus" were removed from the model list tomorrow, what do you do for task (c)?
+(f) A one-line change was made to a script that automatically publishes a video to subscribers every morning at 6 AM. Who verifies it, and at what tier?
+(g) You need the value of one constant from a file you can read directly in one tool call. Delegate to haiku or do it inline?
 
-Bake these into the work itself AND into every delegated prompt — subagents do
-not inherit this skill, so the prompt must carry the rules:
-
-1. **Surface before you build.** State assumptions explicitly. If multiple
-   interpretations exist, present them instead of silently picking one. If a
-   simpler approach exists, say so and push back. If something is genuinely
-   unclear, stop and name what's confusing.
-2. **Smallest thing that works.** No features beyond what was asked, no
-   abstractions for single-use code, no speculative flexibility, no error
-   handling for impossible cases. If 200 lines could be 50, rewrite. Test:
-   "would a senior engineer call this overcomplicated?"
-3. **Touch only what you must.** No improving adjacent code, comments, or
-   formatting. Match the existing style even when you'd choose differently.
-   Remove only the orphans *your* change created; mention (don't delete)
-   pre-existing dead code.
-4. **Define done before starting.** Turn every task into a verifiable goal
-   ("fix the bug" → "write a test that reproduces it, then make it pass") and
-   include that success criterion in the delegated prompt. Loop until
-   verified, escalating per the routing rules.
-
-These disciplines feed the router: a task stripped to its smallest verifiable
-form is cheaper to classify and usually routes lower.
-
-## Delegated-prompt template
-
-Every Agent/subagent prompt should contain: the task, the success criterion,
-the scope limit ("touch only X; do not refactor or reformat anything else"),
-and what to return. Choose `model` from the tier table.
-
-## Quick examples
-
-- "Find where the config is loaded" → T1.
-- "Add a flag to the video encoder + a test" → T2.
-- "The cron run produces a corrupt file sometimes, cause unknown" → T3.
-- "T3 produced two failed root-cause attempts" → T4, citing both failures.
+Answers (a) through (g):

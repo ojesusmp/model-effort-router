@@ -1,6 +1,6 @@
 {
   "name": "@ojesusmp/model-effort-router",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Claude Code skill that routes every delegated task to the cheapest model tier that can do it well, escalates only on evidence, and adapts automatically when models are added, renamed, or removed.",
   "keywords": [
     "claude",
@@ -39,6 +39,7 @@
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
+    "test/",
     "bin/install.mjs"
   ],
   "bin": {

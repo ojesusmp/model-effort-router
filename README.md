@@ -100,10 +100,10 @@ Tiers are **stable capability bands**. Only the "current alias" column ever chan
 ### Routing rules
 
 1. **Pick the lowest tier that would succeed in one pass.** When hesitating between two tiers, take the lower — escalation is cheap, waste is not.
-2. **Escalate on evidence, never on prestige.** One retry at the same tier with a sharpened prompt, then one tier up. The reason for escalating gets logged.
+2. **Escalate on evidence, never on prestige.** One retry at the same tier with a sharpened prompt, then one tier up. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version often drops a whole tier. Mixed tasks get split: the search part is T1 even when the fix part is T3.
-4. **Verification is sized like work**: small → T1, standard → T2, large or security-sensitive → T3.
-5. **The main loop delegates.** When the main conversation runs on a top-tier model, doing T1/T2 work inline is the same mistake as routing it to T4.
+4. **Verification is sized like work — but consequence outranks size.** Small → T1, standard → T2, large or security-sensitive → T3. Exception: anything that publishes, ships to production, or is hard to reverse gets at least T2 verification by an agent that didn't author it (T3 when the blast radius is real), no matter how small the change. A cheap author checked by an equally cheap reviewer is a correlated failure.
+5. **The main loop delegates — above the overhead line.** When the main conversation runs on a top-tier model, doing T1/T2 work inline is the same mistake as routing it to T4. But a subagent spawn has real fixed cost: one-liners and single lookups are done inline. Delegation pays for real work, not micro-tasks.
 
 ### Adaptation protocol
 
@@ -156,7 +156,7 @@ The skill activates when Claude Code consults it for delegation decisions. To ma
 
 ## Customization
 
-- **Model lineup changed?** Edit the "Current alias" column in `SKILL.md` — nothing else. Bands, rules, and the adaptation protocol are deliberately model-agnostic.
+- **Model lineup changed?** Edit the "Current alias" column in `SKILL.md` — nothing else. Bands, rules, and the adaptation protocol are deliberately model-agnostic. If you installed via npm or git, make the same edit in your clone of this repo too: package updates overwrite the installed copy.
 - **Different tier boundaries?** Move work types between the "Route here" cells. Keep the four-band structure: it matches how model families are actually positioned (fast / balanced / deep / flagship).
 - **Stricter escalation?** Change rule 2's "one retry, then one tier up" to your taste — e.g., two retries for expensive tiers.
 - **House discipline?** The four execution rules are a good default; append your own (e.g., "always run the linter") in the same numbered list.
@@ -170,7 +170,13 @@ The skill ships verified by a baseline/with-skill comparison ("RED/GREEN"):
 - **Without the skill**, a small model planning delegations routed an unknown-cause, multi-module debugging task to the flagship tier and improvised an inconsistent answer about model removal.
 - **With the skill**, the same model routed that task to T3 (DEEP), kept lookups and summaries at T1, and answered the removal question exactly per the adaptation protocol: "T3 gone → T4 only for genuinely hard work."
 
-To re-verify after editing the skill, repeat the quiz: ask a model (with and without the skill text) to route (a) a code search, (b) a small feature + test, (c) an unknown-cause bug, (d) a log summary, and (e) what it would do for (c) if the T3 model were removed.
+To re-verify after editing the skill, run the bundled quiz mechanically (any cheap model works):
+
+```bash
+cat test/routing-quiz.txt | claude -p --model haiku
+```
+
+Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline. Any drift from those answers means your edit broke a rule.
 
 ---
 
