@@ -1,0 +1,13 @@
+.omc/
+.omc-state/
+.journal/
+.git/
+.gitignore
+.github/
+*.log
+*.original.md
+node_modules/
+.env
+.env.*
+*.pem
+*.key

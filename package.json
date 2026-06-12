@@ -1,0 +1,57 @@
+{
+  "name": "@ojesusmp/model-effort-router",
+  "version": "1.0.0",
+  "description": "Claude Code skill that routes every delegated task to the cheapest model tier that can do it well, escalates only on evidence, and adapts automatically when models are added, renamed, or removed.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "claude-skill",
+    "skill",
+    "model-routing",
+    "delegation",
+    "subagents",
+    "cost-optimization",
+    "orchestration",
+    "truepointagents"
+  ],
+  "homepage": "https://github.com/ojesusmp/model-effort-router#readme",
+  "bugs": {
+    "url": "https://github.com/ojesusmp/model-effort-router/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Orlando Molina",
+    "url": "https://github.com/ojesusmp"
+  },
+  "contributors": [
+    {
+      "name": "TruePointAgents",
+      "url": "https://github.com/ojesusmp"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ojesusmp/model-effort-router.git"
+  },
+  "type": "module",
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "bin/install.mjs"
+  ],
+  "bin": {
+    "model-effort-router-install": "bin/install.mjs"
+  },
+  "scripts": {
+    "postinstall": "node bin/install.mjs",
+    "test": "node bin/install.mjs --dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
