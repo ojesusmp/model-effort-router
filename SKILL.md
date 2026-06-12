@@ -36,7 +36,9 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
    anything that publishes, ships to production, or is hard to reverse gets
    at least T2 verification by an agent that didn't author it (T3 when the
    blast radius is real), no matter how small the change. A cheap author
-   checked by an equally cheap reviewer is a correlated failure.
+   checked by an equally cheap reviewer is a correlated failure. A cheap
+   result that will be trusted without anyone reading the source material
+   is consequence-bearing too.
 5. **The main loop delegates — above the overhead line.** When the main model
    is a top-tier model, doing T1/T2 work inline is the same mistake as routing
    it to T4 — hand it down. But a subagent spawn has real fixed cost: if
@@ -87,6 +89,15 @@ not inherit this skill, so the prompt must carry the rules:
 
 These disciplines feed the router: a task stripped to its smallest verifiable
 form is cheaper to classify and usually routes lower.
+
+## When the harness misbehaves
+
+A subagent that returns only a greeting or an empty result dropped its prompt —
+that is harness failure, not model failure, so don't escalate the tier for it.
+Recovery order: retry once at the same tier; if it repeats, run the task
+headless (`claude -p --model <alias>` with the prompt on stdin), which bypasses
+the spawn path entirely; as a last resort do the work inline and say so. Don't
+burn more than two spawns proving the harness is broken.
 
 ## Delegated-prompt template
 

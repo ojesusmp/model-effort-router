@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-12
+
+### Added
+
+- **Enforcement hook** (optional, documented in README): a PreToolUse hook
+  that flags any agent spawn with no explicit `model` parameter at the moment
+  it happens — silent when a tier was chosen. Soft by design so it cannot
+  break multi-agent workflows.
+- **Measurement ledger** (optional, documented in README): a PostToolUse hook
+  that automatically appends one JSON line per delegation (time, model, agent
+  type, description) to `~/.claude/router-ledger.jsonl`, turning
+  cost-effectiveness from an assumption into auditable data.
+- **Harness-misbehaves recovery path** in the skill: a greeting-only or empty
+  subagent reply is harness failure, not model failure — retry once at the
+  same tier (no escalation), then run headless (`claude -p --model <alias>`),
+  then inline as last resort.
+- **Disguised-hard heuristic**: a cheap result that will be trusted without
+  anyone reading the source material counts as consequence-bearing for
+  verification sizing.
+- **Limitations section** in the README documenting the boundaries the skill
+  cannot fix (policy not guarantee, harness reliability, main-loop scope,
+  task-description blindness).
+- Quiz question (h) covering the harness-failure recovery rule.
+
+### Changed
+
+- `test/routing-quiz.txt` no longer embeds a copy of the skill text — the
+  gate command is now `cat SKILL.md test/routing-quiz.txt | claude -p --model
+  haiku`, so the test always runs against the live rules and can never drift.
+
+### Verified
+
+- 8/8 gate run on a fresh low-tier model against the live v1.2.0 SKILL.md,
+  including the new harness-failure probe ("retry at haiku, no escalation —
+  harness failure, not model failure").
+- Both hooks pipe-tested: reminder fires only when `model` is absent; ledger
+  line parses with correct fields.
+
 ## [1.1.0] - 2026-06-12
 
 ### Added

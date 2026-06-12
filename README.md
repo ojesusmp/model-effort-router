@@ -25,8 +25,10 @@ It also embeds an execution discipline into every routed task — surface assump
   - [Execution discipline](#execution-discipline)
 - [Usage examples](#usage-examples)
 - [Making it always-on](#making-it-always-on)
+- [Enforcement and measurement (optional hooks)](#enforcement-and-measurement-optional-hooks)
 - [Customization](#customization)
 - [Verification](#verification)
+- [Limitations](#limitations)
 - [Troubleshooting / FAQ](#troubleshooting--faq)
 - [Contributing](#contributing)
 - [Security](#security)
@@ -154,6 +156,46 @@ The skill activates when Claude Code consults it for delegation decisions. To ma
 
 ---
 
+## Enforcement and measurement (optional hooks)
+
+The skill is policy; these two hooks make it harder to ignore and prove what it saves. Both go in `~/.claude/settings.json` (they need `python` on PATH).
+
+**Enforcement** — a PreToolUse hook that flags any agent spawn with no explicit `model` parameter (which silently inherits the expensive main-loop model). It stays silent when a tier was chosen:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "Agent|Task",
+      "hooks": [{
+        "type": "command",
+        "command": "python -c \"import json,sys; d=json.load(sys.stdin); m=(d.get('tool_input') or {}).get('model'); print(json.dumps({'hookSpecificOutput':{'hookEventName':'PreToolUse','additionalContext':'[ROUTER] This agent call passes NO model parameter, so it inherits the expensive main-loop model. Pass an explicit tier unless the agent type defines its own model or T4 is deliberately justified.'}}) if not m else '')\""
+      }]
+    }]
+  }
+}
+```
+
+**Measurement** — a PostToolUse hook that appends one JSON line per delegation (UTC time, model or `inherit`, agent type, task description) to `~/.claude/router-ledger.jsonl`. That file is the evidence: after a few weeks you can see exactly how work distributes across tiers and tune the boundaries on data instead of taste:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Agent|Task",
+      "hooks": [{
+        "type": "command",
+        "command": "python -c \"import json,sys,os,datetime; d=json.load(sys.stdin); ti=(d.get('tool_input') or {}); open(os.path.expanduser('~/.claude/router-ledger.jsonl'),'a',encoding='utf-8').write(json.dumps({'t':datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),'model':ti.get('model') or 'inherit','type':ti.get('subagent_type') or '','desc':(ti.get('description') or '')[:80]})+chr(10))\""
+      }]
+    }]
+  }
+}
+```
+
+Merge them into any existing `PreToolUse`/`PostToolUse` arrays rather than replacing them. The enforcement hook is deliberately soft (a visible reminder, not a block) so it can't break multi-agent workflows that legitimately omit the parameter.
+
+---
+
 ## Customization
 
 - **Model lineup changed?** Edit the "Current alias" column in `SKILL.md` — nothing else. Bands, rules, and the adaptation protocol are deliberately model-agnostic. If you installed via npm or git, make the same edit in your clone of this repo too: package updates overwrite the installed copy.
@@ -170,13 +212,24 @@ The skill ships verified by a baseline/with-skill comparison ("RED/GREEN"):
 - **Without the skill**, a small model planning delegations routed an unknown-cause, multi-module debugging task to the flagship tier and improvised an inconsistent answer about model removal.
 - **With the skill**, the same model routed that task to T3 (DEEP), kept lookups and summaries at T1, and answered the removal question exactly per the adaptation protocol: "T3 gone → T4 only for genuinely hard work."
 
-To re-verify after editing the skill, run the bundled quiz mechanically (any cheap model works):
+To re-verify after editing the skill, run the bundled quiz mechanically (any cheap model works). The quiz contains only the questions — the live SKILL.md is concatenated in front, so the test can never drift from the rules it tests:
 
 ```bash
-cat test/routing-quiz.txt | claude -p --model haiku
+cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
 ```
 
-Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline. Any drift from those answers means your edit broke a rule.
+Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure. Any drift from those answers means your edit broke a rule.
+
+---
+
+## Limitations
+
+Honesty about what this skill cannot do:
+
+- **It's policy, not a hard guarantee.** The rules steer the orchestrating model; the enforcement hook makes violations visible at the moment they happen, but nothing physically blocks a wasteful choice. A determined rationalization can still route badly.
+- **It can't fix the delegation harness.** If your Claude Code subagent spawns drop prompts or carry heavy fixed overhead, the skill can only respond sensibly (the harness-misbehaves recovery path: retry once, go headless, go inline). It cannot make spawning reliable.
+- **It doesn't govern the main conversation.** Your chosen main-loop model is untouched — only delegated work is routed. And subagents don't inherit the skill; the orchestrator must copy the discipline into each prompt, which the skill mandates but cannot force.
+- **Its judgment is bounded by the task description.** A disguised-hard task can still be under-routed. The consequence rule (including "a cheap result trusted without anyone checking the source is consequence-bearing") narrows this gap; it cannot close it completely.
 
 ---
 
