@@ -105,7 +105,7 @@ Tiers are **stable capability bands**. Only the "current alias" column ever chan
 ### Routing rules
 
 1. **Pick the lowest tier that would succeed in one pass.** When hesitating between two tiers, take the lower — escalation is cheap, waste is not.
-2. **Escalate on evidence, never on prestige.** One retry at the same tier with a sharpened prompt, then one tier up — always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). The reason for escalating is stated in one line of the report to the user — that line is the routing record.
+2. **Escalate on evidence, never on prestige.** The ladder: one retry at the same tier — sharpened with the failure evidence, so never identical — then one tier up, always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). A clear misroute skips the ladder: the task jumps straight to the tier the evidence indicates. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version often drops a whole tier. Mixed tasks get split: the search part is T1 even when the fix part is T3.
 4. **Verification is sized like work — but consequence outranks size.** Small → T1, standard → T2, large or security-sensitive → T3. Exception: anything that publishes, ships to production, or is hard to reverse gets at least T2 verification by an agent that didn't author it (T3 when the blast radius is real), no matter how small the change. A cheap author checked by an equally cheap reviewer is a correlated failure.
 5. **The main loop delegates — above the overhead line.** When the main conversation runs on a top-tier model, doing T1/T2 work inline is the same mistake as routing it to T4. But a subagent spawn has real fixed cost: one-liners and single lookups are done inline. Delegation pays for real work, not micro-tasks.
@@ -115,11 +115,12 @@ Tiers are **stable capability bands**. Only the "current alias" column ever chan
 This is what keeps the skill alive across model generations:
 
 - The **live source of truth** for what exists is the set of model aliases the environment actually accepts — never a memorized list.
-- **New model appears** → it is placed in a band by its positioning: marketed as fast/cheap → T1; balanced generalist → T2; most capable broadly available → T3; flagship above that → T4. The newer generation wins when a band has two candidates.
-- **Model removed** → the band collapses to its nearest neighbor: T1 gone → T2; T3 gone → T2 for routine deep work, T4 for genuinely hard work; T4 gone → T3 is the ceiling.
+- **New model appears** → it is placed in a band by its positioning: marketed as fast/cheap → T1; balanced generalist → T2; most capable broadly available → T3; flagship above that → T4. The newer generation wins when a band has two candidates. A brand-new name with unknown positioning defaults to T2, and its first results move it up or down — placement by observation, not guessing.
+- **Model removed** → the band collapses to its nearest *existing* neighbor: T1 gone → T2; T2 gone → T1 for its light end, T3 for the rest; T3 gone → T2 for routine deep work, T4 for genuinely hard work; T4 gone → T3 is the ceiling. If the neighbor is gone too, collapsing continues until a model exists.
 - **Model renamed or updated** → follow the alias; bands and rules are untouched.
 - **Only one model available** → every tier maps to it, and the rest of the skill still governs: scoping, the attempt budget, hand-off briefs, and non-author verification are about discipline, not price. The router works with *any* Claude lineup, including a lineup of one.
-- **Alias rejected at spawn time** → treated as removed: nearest-neighbor fallback in the same call, task keeps moving, table corrected afterward. A task is never stalled on a table fix.
+- **Alias rejected at spawn time** → treated as removed: fallback toward the nearest existing tier in the same call, each distinct alias tried at most once per task, table corrected afterward. A task is never stalled on a table fix.
+- **No delegatable models at all** (no `model` parameter, or every alias rejected) → the router is inert: the work is done inline with the execution discipline and attempt budget intact, and the report says so.
 - **Maintenance is one edit**: update the "current alias" column in `SKILL.md`. If the table and the environment ever disagree, the environment wins.
 
 ### Execution discipline
@@ -141,18 +142,19 @@ A failed delegation has exactly one of three causes, and each gets a different r
 |---|---|---|
 | **Harness** | greeting-only / empty reply, dropped prompt, spawn error | Retry once at the same tier → headless (`claude -p`) → inline. **Never escalate the tier for this.** Max two spawns proving the harness is broken. |
 | **Prompt** | the agent did what you said, not what you meant — missing context, wrong scope | Fix the prompt, rerun at the **same tier**. Escalating a bad prompt buys a smarter model doing the wrong thing. |
-| **Capability** | correct prompt, honest attempt, wrong or incomplete result | This — and only this — escalates one tier, carrying the hand-off brief. |
+| **Capability** | correct prompt, honest attempt, wrong or incomplete result | This — and only this — advances routing rule 2's ladder (sharpened same-tier retry, then one tier up — or a direct jump on clear misroute evidence), carrying the hand-off brief. |
 
-A permission denial or policy block is none of these: the approach changes or the work moves inline — the identical call is never retried verbatim.
+A permission denial or policy block is none of these: the approach changes or the work moves inline — the identical call is never retried verbatim. A verifier's rejection is evidence about the work attempt and is classified with this same taxonomy.
 
 ### Attempt budget
 
 This is the anti-loop guarantee. Every routed task carries a hard budget, and when it's spent the task terminates in a report, not another spawn:
 
-1. **At most 2 work attempts per tier, 4 work spawns total per task** across the whole escalation chain (harness-failure retries have their own cap of 2 and don't count).
-2. **An identical prompt is never resent after a failure.** Every retry changes scope, prompt, approach, or tier — same input, same failure, guaranteed waste.
+1. **At most 2 work attempts per tier, 6 work spawns total per task** across the whole escalation chain (harness-failure retries have their own cap of 2 and don't count; neither do verification passes). When the remaining budget can't cover both a retry and an escalation, the task escalates — reaching the right tier beats retrying the wrong one.
+2. **An identical prompt is never resent after a work failure.** Every retry changes scope, prompt, approach, or tier — the failure evidence alone is a prompt change. (A harness failure is different: the prompt was never processed, so its single same-prompt retry is allowed.)
 3. **The same failure twice means wrong diagnosis, not insufficient model** — the response is re-scoping or splitting, not escalating. A re-scope grants fresh budgets **once per original task**; if the re-scoped version also burns its budget, the task goes to the terminal state, never to another re-scope.
-4. **Terminal state.** When the ceiling tier fails or the budget is spent, the orchestrator STOPS and reports: what was tried at which tiers, what is now known, the exact blocker, and the smallest unblocking step. A precise "blocked because X" report is a successful outcome; a loop never is.
+4. **Verification has its own cap: 2 verify → fix → re-verify cycles.** Verifier spawns don't count as work spawns; a rejection is classified by the failure taxonomy, and after the second rejection the author escalates within the remaining budget or the task goes to the terminal state.
+5. **Terminal state.** When the ceiling tier fails or the budget is spent, the orchestrator STOPS and reports: what was tried at which tiers, what is now known, the exact blocker, and the smallest unblocking step. A precise "blocked because X" report is a successful outcome; a loop never is.
 
 ### Cooperation protocol
 
@@ -256,7 +258,7 @@ To re-verify after editing the skill, run the bundled quiz mechanically (any che
 cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
 ```
 
-Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure, (i) stop — budget spent, report what was tried and the exact blocker, no more spawns, (j) the hand-off brief: what T2 tried, the exact failures/evidence verbatim, and the success criterion, (k) all tiers map to the one alias; scoping, budget, and verification discipline unchanged, (l) no — prompt failure: fix the prompt, same tier. Any drift from those answers means your edit broke a rule.
+Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure, (i) stop — the ceiling tier is exhausted (2 attempts at T3 and at T4), terminal state: report what was tried and the exact blocker, no more spawns, (j) the hand-off brief: what T2 tried, the exact failures/evidence verbatim, and the success criterion, (k) all tiers map to the one alias; scoping, budget, and verification discipline unchanged, (l) no — prompt failure: fix the prompt, same tier. Any drift from those answers means your edit broke a rule.
 
 ---
 

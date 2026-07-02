@@ -33,6 +33,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Quiz questions (i)–(l) covering the terminal state, the hand-off brief,
   the single-model lineup, and prompt-failure (no escalation).
 
+### Hardened (adversarial audit of the first draft)
+
+An independent audit pass against the draft found eight defects — three
+rule-vs-rule contradictions, two literal-reading loop risks, one provable
+waste path, two undefined situations — all fixed before release:
+
+- Routing rule 2 and the capability-failure entry now describe the same
+  ladder (sharpened same-tier retry → one tier up), and a **clear misroute
+  jumps straight to the indicated tier** instead of walking the ladder —
+  closing the path where a hard task misrouted to T1 burned its whole
+  budget without ever reaching the tier that would have succeeded.
+- Work-spawn budget raised from 4 to 6, with an explicit tie-break: when
+  the remaining budget can't cover both a retry and an escalation,
+  escalate.
+- The identical-prompt ban now applies to *work* failures only, so it no
+  longer contradicts the harness-failure recovery (whose prompt was never
+  processed).
+- Verification got its own cap (2 verify → fix → re-verify cycles, not
+  counted as work spawns), and a verifier's rejection is classified by the
+  failure taxonomy instead of falling outside it.
+- The delegated-prompt template now requires passing the attempt budget and
+  terminal state to any spawn-capable subagent — "iterate until verified"
+  without a budget is a license to loop one level down.
+- Model-removal collapse covers T2 (and chained removals: keep collapsing
+  until a model exists); alias-rejection fallback tries each distinct alias
+  at most once per task; a zero-model lineup makes the router inert
+  (inline work, discipline intact); an unknown new model name defaults to
+  T2 and is re-banded by observation.
+
 ### Changed
 
 - Routing rule 2 now binds escalation to the attempt budget and the hand-off

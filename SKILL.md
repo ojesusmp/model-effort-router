@@ -25,10 +25,13 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
 
 1. **Pick the lowest tier that would succeed in one pass.** If you hesitate
    between two tiers, take the lower one — escalation is cheap, waste is not.
-2. **Escalate on evidence, never on prestige.** One retry at the same tier
-   (with a sharpened prompt), then one tier up — always within the attempt
-   budget below, and always carrying the hand-off brief from the cooperation
-   protocol. State why you escalated in one line of your report to the user —
+2. **Escalate on evidence, never on prestige.** The ladder: one retry at the
+   same tier — sharpened with the failure evidence, which is new information,
+   so the retry is never identical — then one tier up, carrying the hand-off
+   brief. Skip the same-tier retry when the evidence already shows a clear
+   misroute: jump straight to the tier the evidence indicates instead of
+   walking the ladder one rung at a time. All of it inside the attempt budget
+   below. State why you escalated in one line of your report to the user —
    that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version
    often drops a whole tier. Split mixed tasks: the search part is T1 even
@@ -55,17 +58,26 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
 - **New model appears** → place it in a band by its positioning: marketed as
   fast/cheap → T1; balanced generalist → T2; most capable broadly available →
   T3; flagship above that → T4. Prefer the newer generation when a band has
-  two candidates.
-- **Model removed** → collapse to the nearest neighbor: T1 gone → use T2;
-  T3 gone → T2 for routine deep work, T4 for genuinely hard work; T4 gone →
-  T3 is the ceiling.
+  two candidates. If the name is new and its positioning is unknown, default
+  it to T2 and let its first results move it up or down — placement by
+  observation beats guessing.
+- **Model removed** → collapse to the nearest existing neighbor: T1 gone →
+  use T2; T2 gone → T1 for its light end, T3 for the rest; T3 gone → T2 for
+  routine deep work, T4 for genuinely hard work; T4 gone → T3 is the ceiling.
+  If the neighbor is gone too, keep collapsing until you land on a model that
+  exists.
 - **Model renamed/updated** → follow the alias; bands and rules are untouched.
 - **Only one model available** → every tier maps to it. The rest of the skill
   still governs: scoping, the attempt budget, hand-off briefs, and non-author
   verification are about discipline, not price — they apply unchanged.
-- **Alias rejected at spawn time** → treat it as removed: fall back to the
-  nearest neighbor tier in the same call, keep the task moving, and correct
-  the table afterward. Never stall a task on a table fix.
+- **Alias rejected at spawn time** → treat it as removed: fall back toward
+  the nearest existing tier in the same call, trying each distinct alias at
+  most once per task, keep the task moving, and correct the table afterward.
+  Never stall a task on a table fix.
+- **No delegatable models at all** (the Agent tool takes no `model`
+  parameter, or every alias was rejected) → the router is inert: do the work
+  inline, keep the execution discipline and attempt budget, and say so in
+  the report.
 - **Maintenance** is one edit: update the "current alias" column above. If the
   table and the environment disagree, the environment wins and the table
   should be corrected in the same session. If this skill was installed from a
@@ -116,29 +128,40 @@ wastes a tier; diagnose first, then apply the matching response:
   the **same tier**. Escalating a bad prompt buys a smarter model doing the
   wrong thing.
 - **Capability failure** — correct prompt, honest attempt, wrong or
-  incomplete result. This — and only this — escalates one tier, carrying the
-  hand-off brief.
+  incomplete result. This — and only this — advances routing rule 2's ladder
+  (sharpened same-tier retry, then one tier up — or a direct jump on clear
+  misroute evidence), always carrying the hand-off brief.
 
 A permission denial or policy block is none of these: adjust the approach or
-do it inline; retrying the identical call verbatim is guaranteed waste.
+do it inline; retrying the identical call verbatim is guaranteed waste. A
+verifier's rejection is evidence about the work attempt — classify it with
+this same taxonomy and respond accordingly.
 
 ## Attempt budget — no loops, ever
 
 Every routed task carries a hard budget; when it's spent, the task terminates
 in a report, not another spawn:
 
-1. **At most 2 work attempts per tier, 4 work spawns total per task** across
-   the whole escalation chain. (Harness-failure retries have their own cap of
-   2 and don't count against this.)
-2. **Never resend an identical prompt after a failure.** Every retry changes
-   at least one of: scope, prompt, approach, tier. Same input, same failure —
-   guaranteed waste.
+1. **At most 2 work attempts per tier, 6 work spawns total per task** across
+   the whole escalation chain. (Harness-failure retries have their own cap
+   of 2 and don't count; neither do verification passes — see rule 4.) When
+   the remaining budget can't cover both a retry and an escalation,
+   escalate: reaching the right tier beats retrying the wrong one.
+2. **Never resend an identical prompt after a work failure.** Every retry
+   changes at least one of: scope, prompt, approach, tier — the failure
+   evidence alone is a prompt change. Same input, same failure — guaranteed
+   waste. (A harness failure is different: the prompt was never processed,
+   so the taxonomy's single same-prompt retry is allowed.)
 3. **The same failure twice means wrong diagnosis, not insufficient model.**
    Stop escalating; re-scope, split, or re-read the evidence instead.
    Re-scoping or splitting creates new tasks with fresh budgets — **once per
    original task**. If the re-scoped version also burns its budget, go to the
    terminal state, never to another re-scope.
-4. **Terminal state.** When the ceiling tier fails or the budget is spent,
+4. **Verification has its own cap: 2 verify → fix → re-verify cycles.**
+   Verifier spawns don't count as work spawns. A rejection is classified by
+   the failure taxonomy; after the second rejection, escalate the author
+   within the remaining budget or go to the terminal state.
+5. **Terminal state.** When the ceiling tier fails or the budget is spent,
    STOP and report: what was tried at which tiers, what is now known, the
    exact blocker, and the smallest step that would unblock it. A precise
    "blocked because X" report is a successful outcome; a loop never is.
@@ -168,7 +191,10 @@ usable material to the next. The system's output depends on the hand-offs.
 Every Agent/subagent prompt should contain: the task, the success criterion,
 the scope limit ("touch only X; do not refactor or reformat anything else"),
 and what to return (material, not narrative). On escalation or hand-off, add
-the brief from cooperation rule 2. Choose `model` from the tier table.
+the brief from cooperation rule 2. If the subagent can itself spawn agents,
+the prompt must also carry the attempt budget and terminal state — subagents
+don't inherit this skill, and "iterate until verified" without a budget is a
+license to loop. Choose `model` from the tier table.
 
 ## Quick examples
 
