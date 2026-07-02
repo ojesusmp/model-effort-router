@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-02
+
+### Added
+
+- **Failure taxonomy**: every failed delegation is classified as harness,
+  prompt, or capability failure before any reaction — only capability
+  failures escalate. Fixing a prompt at the same tier replaces the old
+  behavior of escalating everything, and permission/policy blocks are
+  explicitly "change approach, never retry verbatim."
+- **Attempt budget with terminal state** (the anti-loop guarantee): at most
+  2 work attempts per tier and 4 work spawns per task; identical prompts are
+  never resent after a failure; two identical failures mean wrong diagnosis,
+  not insufficient model; and when the ceiling tier fails or the budget is
+  spent, the task terminates in a precise "blocked because X" report instead
+  of another spawn.
+- **Cooperation protocol** ("the cell rule"): scouts feed workers (T1 gathers
+  context so higher tiers spend tokens only on the hard core); every
+  hand-off/escalation carries a compact brief (goal, done, exact failures,
+  remaining question) so no tier re-pays for discovery; agents return
+  material (paths, diffs, failing commands) rather than narrative; the
+  verifier is never the author; parallel agents get disjoint scopes.
+- **Degenerate-lineup rules** in the adaptation protocol: a lineup of one
+  model maps every tier to it (discipline unchanged), and an alias rejected
+  at spawn time falls back to the nearest neighbor in the same call — a task
+  is never stalled on a table fix.
+- Quiz questions (i)–(l) covering the terminal state, the hand-off brief,
+  the single-model lineup, and prompt-failure (no escalation).
+
+### Changed
+
+- Routing rule 2 now binds escalation to the attempt budget and the hand-off
+  brief.
+- The delegated-prompt template requires "material, not narrative" returns
+  and the hand-off brief on escalation.
+- The "When the harness misbehaves" section was absorbed into the failure
+  taxonomy (same recovery path, unchanged caps).
+
 ## [1.2.0] - 2026-06-12
 
 ### Added

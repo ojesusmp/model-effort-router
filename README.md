@@ -23,6 +23,9 @@ It also embeds an execution discipline into every routed task — surface assump
   - [Routing rules](#routing-rules)
   - [Adaptation protocol](#adaptation-protocol)
   - [Execution discipline](#execution-discipline)
+  - [Failure taxonomy](#failure-taxonomy)
+  - [Attempt budget](#attempt-budget)
+  - [Cooperation protocol](#cooperation-protocol)
 - [Usage examples](#usage-examples)
 - [Making it always-on](#making-it-always-on)
 - [Enforcement and measurement (optional hooks)](#enforcement-and-measurement-optional-hooks)
@@ -102,7 +105,7 @@ Tiers are **stable capability bands**. Only the "current alias" column ever chan
 ### Routing rules
 
 1. **Pick the lowest tier that would succeed in one pass.** When hesitating between two tiers, take the lower — escalation is cheap, waste is not.
-2. **Escalate on evidence, never on prestige.** One retry at the same tier with a sharpened prompt, then one tier up. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
+2. **Escalate on evidence, never on prestige.** One retry at the same tier with a sharpened prompt, then one tier up — always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). The reason for escalating is stated in one line of the report to the user — that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version often drops a whole tier. Mixed tasks get split: the search part is T1 even when the fix part is T3.
 4. **Verification is sized like work — but consequence outranks size.** Small → T1, standard → T2, large or security-sensitive → T3. Exception: anything that publishes, ships to production, or is hard to reverse gets at least T2 verification by an agent that didn't author it (T3 when the blast radius is real), no matter how small the change. A cheap author checked by an equally cheap reviewer is a correlated failure.
 5. **The main loop delegates — above the overhead line.** When the main conversation runs on a top-tier model, doing T1/T2 work inline is the same mistake as routing it to T4. But a subagent spawn has real fixed cost: one-liners and single lookups are done inline. Delegation pays for real work, not micro-tasks.
@@ -115,6 +118,8 @@ This is what keeps the skill alive across model generations:
 - **New model appears** → it is placed in a band by its positioning: marketed as fast/cheap → T1; balanced generalist → T2; most capable broadly available → T3; flagship above that → T4. The newer generation wins when a band has two candidates.
 - **Model removed** → the band collapses to its nearest neighbor: T1 gone → T2; T3 gone → T2 for routine deep work, T4 for genuinely hard work; T4 gone → T3 is the ceiling.
 - **Model renamed or updated** → follow the alias; bands and rules are untouched.
+- **Only one model available** → every tier maps to it, and the rest of the skill still governs: scoping, the attempt budget, hand-off briefs, and non-author verification are about discipline, not price. The router works with *any* Claude lineup, including a lineup of one.
+- **Alias rejected at spawn time** → treated as removed: nearest-neighbor fallback in the same call, task keeps moving, table corrected afterward. A task is never stalled on a table fix.
 - **Maintenance is one edit**: update the "current alias" column in `SKILL.md`. If the table and the environment ever disagree, the environment wins.
 
 ### Execution discipline
@@ -128,6 +133,37 @@ Every routed task — and every prompt handed to a subagent, since subagents don
 
 These disciplines feed the router: a task stripped to its smallest verifiable form is cheaper to classify and usually routes lower.
 
+### Failure taxonomy
+
+A failed delegation has exactly one of three causes, and each gets a different response — escalating the wrong one wastes a tier:
+
+| Failure | Signature | Response |
+|---|---|---|
+| **Harness** | greeting-only / empty reply, dropped prompt, spawn error | Retry once at the same tier → headless (`claude -p`) → inline. **Never escalate the tier for this.** Max two spawns proving the harness is broken. |
+| **Prompt** | the agent did what you said, not what you meant — missing context, wrong scope | Fix the prompt, rerun at the **same tier**. Escalating a bad prompt buys a smarter model doing the wrong thing. |
+| **Capability** | correct prompt, honest attempt, wrong or incomplete result | This — and only this — escalates one tier, carrying the hand-off brief. |
+
+A permission denial or policy block is none of these: the approach changes or the work moves inline — the identical call is never retried verbatim.
+
+### Attempt budget
+
+This is the anti-loop guarantee. Every routed task carries a hard budget, and when it's spent the task terminates in a report, not another spawn:
+
+1. **At most 2 work attempts per tier, 4 work spawns total per task** across the whole escalation chain (harness-failure retries have their own cap of 2 and don't count).
+2. **An identical prompt is never resent after a failure.** Every retry changes scope, prompt, approach, or tier — same input, same failure, guaranteed waste.
+3. **The same failure twice means wrong diagnosis, not insufficient model** — the response is re-scoping or splitting, not escalating. A re-scope grants fresh budgets **once per original task**; if the re-scoped version also burns its budget, the task goes to the terminal state, never to another re-scope.
+4. **Terminal state.** When the ceiling tier fails or the budget is spent, the orchestrator STOPS and reports: what was tried at which tiers, what is now known, the exact blocker, and the smallest unblocking step. A precise "blocked because X" report is a successful outcome; a loop never is.
+
+### Cooperation protocol
+
+Agents are organelles, not soloists — like a cell, the system's output depends on parts doing one job each and handing usable material to the next:
+
+1. **Scouts feed workers.** T1 gathers context (file locations, log extracts, signatures, repro commands) so higher tiers spend tokens only on the hard core, never on discovery a cheap model could do.
+2. **Hand-offs carry a brief, not a transcript**: the goal, what's done, what failed and why (exact errors, verbatim), and the one question that remains. Escalating without the failure evidence pays for the same discovery twice.
+3. **Agents return material, not narrative**: paths, diffs, failing commands, extracted facts — whatever the next agent can act on directly.
+4. **The verifier is never the author.** Fresh eyes are the point; a self-reviewing agent is a correlated failure.
+5. **Parallel agents get disjoint scopes** — split by file, module, or question, never "everyone look at everything."
+
 ---
 
 ## Usage examples
@@ -140,6 +176,8 @@ These disciplines feed the router: a task stripped to its smallest verifiable fo
 | "T3 failed twice on this — bring the big guns" | T4 (FRONTIER), citing both failures |
 | "Summarize this 200-line log" | T1 (LIGHT) |
 | "Review this auth change for security issues" | T3 (DEEP — security verification) |
+| "T4 failed too" | Nowhere — terminal state: stop and report the exact blocker |
+| "Agent failed because my prompt omitted the target dir" | Same tier with a fixed prompt (prompt failure ≠ capability failure) |
 
 ---
 
@@ -218,7 +256,7 @@ To re-verify after editing the skill, run the bundled quiz mechanically (any che
 cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
 ```
 
-Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure. Any drift from those answers means your edit broke a rule.
+Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure, (i) stop — budget spent, report what was tried and the exact blocker, no more spawns, (j) the hand-off brief: what T2 tried, the exact failures/evidence verbatim, and the success criterion, (k) all tiers map to the one alias; scoping, budget, and verification discipline unchanged, (l) no — prompt failure: fix the prompt, same tier. Any drift from those answers means your edit broke a rule.
 
 ---
 
@@ -226,7 +264,7 @@ Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f)
 
 Honesty about what this skill cannot do:
 
-- **It's policy, not a hard guarantee.** The rules steer the orchestrating model; the enforcement hook makes violations visible at the moment they happen, but nothing physically blocks a wasteful choice. A determined rationalization can still route badly.
+- **It's policy, not a hard guarantee.** The rules steer the orchestrating model; the enforcement hook makes violations visible at the moment they happen, but nothing physically blocks a wasteful choice. A determined rationalization can still route badly or overrun the attempt budget — the budget and terminal state make a runaway loop a *rule violation* with a defined exit, not an impossibility.
 - **It can't fix the delegation harness.** If your Claude Code subagent spawns drop prompts or carry heavy fixed overhead, the skill can only respond sensibly (the harness-misbehaves recovery path: retry once, go headless, go inline). It cannot make spawning reliable.
 - **It doesn't govern the main conversation.** Your chosen main-loop model is untouched — only delegated work is routed. And subagents don't inherit the skill; the orchestrator must copy the discipline into each prompt, which the skill mandates but cannot force.
 - **Its judgment is bounded by the task description.** A disguised-hard task can still be under-routed. The consequence rule (including "a cheap result trusted without anyone checking the source is consequence-bearing") narrows this gap; it cannot close it completely.
