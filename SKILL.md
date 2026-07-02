@@ -30,8 +30,9 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
    so the retry is never identical — then one tier up, carrying the hand-off
    brief. Skip the same-tier retry when the evidence already shows a clear
    misroute: jump straight to the tier the evidence indicates instead of
-   walking the ladder one rung at a time. All of it inside the attempt budget
-   below. State why you escalated in one line of your report to the user —
+   walking the ladder one rung at a time — topping out at T3, because T4's
+   gate (a demonstrably failed T3 attempt, or an explicit user request)
+   always holds. All of it inside the attempt budget below. State why you escalated in one line of your report to the user —
    that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version
    often drops a whole tier. Split mixed tasks: the search part is T1 even
@@ -160,7 +161,10 @@ in a report, not another spawn:
 4. **Verification has its own cap: 2 verify → fix → re-verify cycles.**
    Verifier spawns don't count as work spawns. A rejection is classified by
    the failure taxonomy; after the second rejection, escalate the author
-   within the remaining budget or go to the terminal state.
+   within the remaining budget or go to the terminal state. An escalated
+   author gets one fresh verification cap — once; if that is spent too, the
+   task goes to the terminal state. Consequence-bearing work that cannot
+   pass verification is reported as blocked, never shipped unverified.
 5. **Terminal state.** When the ceiling tier fails or the budget is spent,
    STOP and report: what was tried at which tiers, what is now known, the
    exact blocker, and the smallest step that would unblock it. A precise
@@ -192,9 +196,11 @@ Every Agent/subagent prompt should contain: the task, the success criterion,
 the scope limit ("touch only X; do not refactor or reformat anything else"),
 and what to return (material, not narrative). On escalation or hand-off, add
 the brief from cooperation rule 2. If the subagent can itself spawn agents,
-the prompt must also carry the attempt budget and terminal state — subagents
-don't inherit this skill, and "iterate until verified" without a budget is a
-license to loop. Choose `model` from the tier table.
+the prompt must also carry the attempt budget, the terminal state, and this
+propagation requirement itself — so the budget travels with every further
+spawn, at any depth. Subagents don't inherit this skill, and "iterate until
+verified" without a budget is a license to loop. Choose `model` from the
+tier table.
 
 ## Quick examples
 

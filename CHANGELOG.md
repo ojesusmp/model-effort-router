@@ -62,6 +62,18 @@ waste path, two undefined situations — all fixed before release:
   (inline work, discipline intact); an unknown new model name defaults to
   T2 and is re-banded by observation.
 
+A second audit round confirmed all eight fixes and found three residual
+defects at the seams of the fixes, also closed before release:
+
+- The budget-propagation requirement in the delegated-prompt template now
+  propagates itself, so spawn-capable grandchildren at any depth carry the
+  attempt budget and terminal state.
+- An escalated author gets one fresh verification cap — once; after that
+  the task terminates. Consequence-bearing work that cannot pass
+  verification is reported as blocked, never shipped unverified.
+- The misroute direct-jump tops out at T3: T4's entry gate (a demonstrably
+  failed T3 attempt, or an explicit user request) always holds.
+
 ### Changed
 
 - Routing rule 2 now binds escalation to the attempt budget and the hand-off
