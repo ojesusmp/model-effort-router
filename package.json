@@ -41,6 +41,7 @@
     "CHANGELOG.md",
     "test/",
     "tools/",
+    "skills/",
     "bin/install.mjs"
   ],
   "bin": {

@@ -87,10 +87,28 @@ if (expectedBlock) {
   );
 }
 
+// --- Bundled skill-hardener ---
+const hardener = readFileSync("skills/skill-hardener/SKILL.md", "utf8");
+const hFm = hardener.match(/^---\n([\s\S]*?)\n---/);
+check("skill-hardener has YAML frontmatter", !!hFm);
+if (hFm) {
+  check("skill-hardener frontmatter has no tabs", !hFm[1].includes("\t"));
+  check("skill-hardener frontmatter has name", /^name:\s*\S+/m.test(hFm[1]));
+  check(
+    "skill-hardener frontmatter has description",
+    /^description:\s*\S+/m.test(hFm[1])
+  );
+}
+check(
+  "skill-hardener quiz exists",
+  readFileSync("skills/skill-hardener/test/hardener-quiz.txt", "utf8").length > 0
+);
+
 // --- Packaged files exist ---
 check(
-  "package.json files list includes SKILL.md and test/",
-  pkg.files.includes("SKILL.md") && pkg.files.includes("test/")
+  "package.json files list includes SKILL.md, test/, and skills/",
+  pkg.files.includes("SKILL.md") && pkg.files.includes("test/") &&
+    pkg.files.includes("skills/")
 );
 
 if (failures) {

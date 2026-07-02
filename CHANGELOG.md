@@ -76,6 +76,13 @@ defects at the seams of the fixes, also closed before release:
 
 ### Repository
 
+- **Bundled companion skill: skill-hardener** (`skills/skill-hardener/`,
+  shipped in the npm package and deployed by the installer to
+  `~/.claude/skills/skill-hardener/`): the reusable hardening pipeline —
+  staleness recon for old skills, five-class gap analysis, rewrite
+  discipline, mechanical gate, adversarial audit until dry (own budget: 4
+  rounds), cross-model verification, repo sweep — with its own 6-question
+  gate verified 6/6 on two model tiers.
 - **Ledger dashboard** (`tools/router-dashboard.html`, shipped in the npm
   package): a single self-contained HTML page that reads
   `~/.claude/router-ledger.jsonl` locally (file picker or drag-and-drop — no

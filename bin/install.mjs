@@ -33,12 +33,14 @@ if (existsSync(join(pkgRoot, ".git"))) {
   process.exit(0);
 }
 
-const targetRoot = join(homedir(), ".claude", "skills", "model-effort-router");
+const skillsRoot = join(homedir(), ".claude", "skills");
+const targetRoot = join(skillsRoot, "model-effort-router");
+const hardenerRoot = join(skillsRoot, "skill-hardener");
 
-function copyFileIfExists(srcRel, destDir) {
-  const s = join(pkgRoot, srcRel);
+function copyFileIfExists(srcRel, destDir, srcBase = "") {
+  const s = join(pkgRoot, srcBase, srcRel);
   if (!existsSync(s)) {
-    warn(`source missing: ${srcRel}`);
+    warn(`source missing: ${join(srcBase, srcRel)}`);
     return;
   }
   const d = join(destDir, srcRel);
@@ -65,8 +67,13 @@ try {
   copyFileIfExists("LICENSE", targetRoot);
   copyFileIfExists("CHANGELOG.md", targetRoot);
 
-  log("done. Skill installed at: " + targetRoot);
-  log("It activates whenever Claude Code delegates work to subagents.");
+  // Bundled companion skill: skill-hardener
+  copyFileIfExists("SKILL.md", hardenerRoot, "skills/skill-hardener");
+  copyFileIfExists("README.md", hardenerRoot, "skills/skill-hardener");
+  copyFileIfExists("test/hardener-quiz.txt", hardenerRoot, "skills/skill-hardener");
+
+  log("done. Skills installed at: " + targetRoot + " and " + hardenerRoot);
+  log("model-effort-router activates when Claude Code delegates work; skill-hardener when auditing/hardening a skill.");
 } catch (err) {
   warn("install failed: " + (err && err.message ? err.message : String(err)));
   warn("You can manually copy files from " + pkgRoot + " to " + targetRoot);

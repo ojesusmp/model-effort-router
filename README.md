@@ -236,6 +236,16 @@ The skill is policy; these two hooks make it harder to ignore and prove what it 
 
 Merge them into any existing `PreToolUse`/`PostToolUse` arrays rather than replacing them. The enforcement hook is deliberately soft (a visible reminder, not a block) so it can't break multi-agent workflows that legitimately omit the parameter.
 
+### Bundled companion skill: skill-hardener
+
+The package also ships **skill-hardener** (`skills/skill-hardener/`) — the pipeline that hardened this very skill, packaged for reuse on any Claude Code skill: staleness recon (for skills written months ago), gap analysis against five defect classes, rewrite discipline, a mechanical verification gate, adversarial audit rounds until one returns zero, cross-model checks, and a repo sweep. The npm/git installer deploys it to `~/.claude/skills/skill-hardener/` alongside the router, and the plugin marketplace install picks it up from `skills/`.
+
+No install needed in ephemeral sessions (web/mobile): tell Claude to fetch
+`https://raw.githubusercontent.com/ojesusmp/model-effort-router/main/skills/skill-hardener/SKILL.md`
+and follow that pipeline against the target skill. Its own gate:
+`cat skills/skill-hardener/SKILL.md skills/skill-hardener/test/hardener-quiz.txt | claude -p --model haiku`
+(expected answers in `skills/skill-hardener/README.md`).
+
 ### Ledger dashboard
 
 `tools/router-dashboard.html` turns the measurement ledger into pictures: stat tiles (delegation count, explicitly-routed share, cost index vs. an all-frontier baseline, busiest tier), delegations by tier, a stacked timeline, and a full table view. Open the file in any browser and drop `~/.claude/router-ledger.jsonl` onto it — everything runs locally in the page, no network, no upload. Cost weights are editable in the filter row; entries with no explicit model are counted at the T4 weight (they inherit the main-loop model — the worst case the enforcement hook exists to prevent), and since the ledger has no token counts the cost index is a relative proxy, clearly labeled as such.
