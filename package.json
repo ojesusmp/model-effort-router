@@ -40,6 +40,7 @@
     "LICENSE",
     "CHANGELOG.md",
     "test/",
+    "tools/",
     "bin/install.mjs"
   ],
   "bin": {

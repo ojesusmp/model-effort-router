@@ -76,6 +76,14 @@ defects at the seams of the fixes, also closed before release:
 
 ### Repository
 
+- **Ledger dashboard** (`tools/router-dashboard.html`, shipped in the npm
+  package): a single self-contained HTML page that reads
+  `~/.claude/router-ledger.jsonl` locally (file picker or drag-and-drop — no
+  network, no upload) and shows stat tiles, delegations by tier, a stacked
+  timeline, and a full table view, with date-range filtering, editable
+  relative cost weights, tooltips, dark mode, and a colorblind-validated
+  palette. Inherit entries are counted at the T4 weight and the cost index
+  is labeled as a relative proxy.
 - **CI workflow** (`.github/workflows/ci.yml`): installer dry run, `npm pack`
   dry run, and a consistency validator (`.github/scripts/validate.mjs`) that
   checks SKILL.md structure and frontmatter, version agreement across
