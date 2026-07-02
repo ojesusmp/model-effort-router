@@ -1,0 +1,40 @@
+name: Publish to npm
+
+# Publishes when a GitHub release is published.
+# Requires an npm automation token stored as the NPM_TOKEN repository secret
+# (repo Settings -> Secrets and variables -> Actions -> New repository secret).
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Validate before publishing
+        run: node .github/scripts/validate.mjs
+
+      - name: Check tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Release tag v$TAG does not match package.json version $PKG" >&2
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

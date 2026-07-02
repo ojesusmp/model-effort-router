@@ -12,6 +12,8 @@ Because the skill defines **stable capability bands** rather than hardcoded mode
 
 It also embeds an execution discipline into every routed task — surface assumptions, build the smallest thing that works, touch only what you must, define a verifiable "done" before starting — so cheaper models stay reliable and expensive models stay scoped.
 
+Since v1.3.0 the router is also **guaranteed to terminate** (a hard attempt budget with a defined terminal state — no retry loop, no runaway spawning, at any delegation depth) and **cooperative by design**: cheap scouts gather context for bigger workers, every escalation hands forward the failure evidence so no tier pays for the same discovery twice, and verification is always done by fresh eyes.
+
 ---
 
 ## Table of contents
@@ -247,7 +249,9 @@ Merge them into any existing `PreToolUse`/`PostToolUse` arrays rather than repla
 
 ## Verification
 
-The skill ships verified by a baseline/with-skill comparison ("RED/GREEN"):
+Every release is verified two ways: the mechanical quiz gate below, and — for v1.3.0 — three rounds of independent adversarial audit run until a round found zero defects (round 1: eight defects found and fixed; round 2: fixes confirmed, three seam defects found and fixed; round 3: no new defects). The audit trail is in the [CHANGELOG](./CHANGELOG.md).
+
+The skill also ships verified by a baseline/with-skill comparison ("RED/GREEN"):
 
 - **Without the skill**, a small model planning delegations routed an unknown-cause, multi-module debugging task to the flagship tier and improvised an inconsistent answer about model removal.
 - **With the skill**, the same model routed that task to T3 (DEEP), kept lookups and summaries at T1, and answered the removal question exactly per the adaptation protocol: "T3 gone → T4 only for genuinely hard work."

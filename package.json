@@ -47,7 +47,8 @@
   },
   "scripts": {
     "postinstall": "node bin/install.mjs",
-    "test": "node bin/install.mjs --dry-run"
+    "test": "node bin/install.mjs --dry-run",
+    "validate": "node .github/scripts/validate.mjs"
   },
   "engines": {
     "node": ">=18"

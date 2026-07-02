@@ -1,4 +1,4 @@
-﻿---
+---
 name: Feature request
 about: Suggest a new feature or improvement.
 title: "[Feature] "
@@ -10,7 +10,7 @@ assignees: ojesusmp
 
 Describe the user problem this feature would solve. Start with the user, not the solution.
 
-Example: "When I share an model-effort-router HTML with a stakeholder on mobile, the decision matrix is too wide to read without horizontal scroll."
+Example: "My team runs Claude Code with a custom in-house model between T2 and T3, and the four-band table gives me no place to put it."
 
 ## Proposed solution
 
@@ -24,13 +24,13 @@ Other approaches you thought about and why you did not choose them.
 
 Confirm that the proposed feature does not violate any of these non-negotiable goals (see `CONTRIBUTING.md`):
 
-- [ ] Generated HTML stays self-contained â€” no external resources, no JavaScript libraries, no network calls.
-- [ ] Generated HTML remains readable at an 18-year-old reading level.
-- [ ] Trigger phrases stay precise â€” no generic phrases that would collide with everyday Claude Code usage.
-- [ ] The two-tier confirmed-versus-inferred schema stays intact.
+- [ ] Bands stay model-agnostic — no rules written against specific model names.
+- [ ] `SKILL.md` stays a single self-contained Markdown instruction file that executes nothing.
+- [ ] No unbounded behavior — every retry/escalation/spawn path is bounded by the attempt budget and ends in the terminal state.
+- [ ] Trigger phrases stay precise — no generic phrases that would fire on everyday Claude Code usage.
 
 If your proposal does conflict with one of these goals, explain why the conflict is worth it.
 
 ## Additional context
 
-Screenshots, mockups, related issues, or links to similar features elsewhere.
+Transcripts, ledger excerpts (`~/.claude/router-ledger.jsonl`), related issues, or links to similar features elsewhere.

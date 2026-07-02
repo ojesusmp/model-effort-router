@@ -74,6 +74,30 @@ defects at the seams of the fixes, also closed before release:
 - The misroute direct-jump tops out at T3: T4's entry gate (a demonstrably
   failed T3 attempt, or an explicit user request) always holds.
 
+### Repository
+
+- **CI workflow** (`.github/workflows/ci.yml`): installer dry run, `npm pack`
+  dry run, and a consistency validator (`.github/scripts/validate.mjs`) that
+  checks SKILL.md structure and frontmatter, version agreement across
+  `package.json` / `marketplace.json` / CHANGELOG, and that the README's
+  expected answers cover every quiz question.
+- **Publish workflow** (`.github/workflows/publish.yml`): publishes to npm
+  with provenance when a GitHub release is published (requires an
+  `NPM_TOKEN` repository secret; refuses tags that don't match
+  `package.json`).
+- **Funding file** (`.github/FUNDING.yml`) for GitHub Sponsors.
+- Marketplace manifest bumped to 1.3.0 and its plugin description updated
+  to cover the anti-loop and cooperation guarantees.
+
+### Fixed
+
+- `CONTRIBUTING.md`, `SECURITY.md`, the pull-request template, and both
+  issue templates described a different project (an HTML documentation
+  generator). All five rewritten for what this repository actually is —
+  goals, threat model, verification steps, and checklists now reference the
+  quiz gate, the attempt budget, and the installer instead of generated
+  HTML.
+
 ### Changed
 
 - Routing rule 2 now binds escalation to the attempt budget and the hand-off
@@ -171,4 +195,7 @@ defects at the seams of the fixes, also closed before release:
 - npm postinstall installer (`bin/install.mjs`), Claude Code plugin marketplace
   manifest, and full repository documentation.
 
+[1.3.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.3.0
+[1.2.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.2.0
+[1.1.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.0.0
