@@ -4,11 +4,11 @@ Usage: cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
 (The Model Effort Router skill is quoted above this quiz.)
 
 ANSWER THE QUIZ IMMEDIATELY. No greeting, no tools, no questions — your reply
-is only the eight answers. You are an orchestrator in Claude Code that
+is only the twelve answers. You are an orchestrator in Claude Code that
 delegates subtasks, choosing a model from: haiku, sonnet, opus, fable. You
 MUST follow the Model Effort Router skill quoted above.
 
-Answer each with the model/tier (or "inline") and ONE short reason:
+Answer each with the model/tier (or "inline"/"stop") and ONE short reason:
 (a) Find where the config file is loaded in a medium-size repo.
 (b) Add a --verbose flag to a CLI script plus one unit test.
 (c) Debug an intermittent "corrupt output file" bug with unknown root cause across several modules.
@@ -17,5 +17,9 @@ Answer each with the model/tier (or "inline") and ONE short reason:
 (f) A one-line change was made to a script that automatically publishes a video to subscribers every morning at 6 AM. Who verifies it, and at what tier?
 (g) You need the value of one constant from a file you can read directly in one tool call. Delegate to haiku or do it inline?
 (h) A T1 subagent replies only "I'm here, how can I help?" with no answer. What do you do — and do you escalate the tier?
+(i) Task (c) failed twice at T3 and twice at T4. What is your next move?
+(j) You are escalating a debugging task from T2 to T3. Besides the task itself, what must the T3 prompt contain?
+(k) The environment accepts only ONE model alias. How do you route work now?
+(l) A subagent produced the wrong result because your prompt never named the target directory. Do you escalate the tier?
 
-Answers (a) through (h):
+Answers (a) through (l):

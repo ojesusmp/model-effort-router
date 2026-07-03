@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Router Ledger Dashboard — model-effort-router</title>
+<style>
+  /* Palette: dataviz reference instance, validated with validate_palette.js
+     light "#2a78d6,#1baf7a,#eda100,#008300" → ALL CHECKS PASS (contrast WARN on
+     slots 2–3 → relief rule: direct labels + table view, both present).
+     dark "#3987e5,#199e70,#c98500,#008300" → ALL CHECKS PASS (CVD floor band →
+     secondary encoding: direct labels + 2px surface gaps + table view). */
+  :root {
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --tier-1: #2a78d6;
+    --tier-2: #1baf7a;
+    --tier-3: #eda100;
+    --tier-4: #008300;
+    --tier-inherit: #898781;
+    --good: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --tier-1: #3987e5;
+      --tier-2: #199e70;
+      --tier-3: #c98500;
+      --tier-4: #008300;
+      --tier-inherit: #898781;
+      --good: #0ca30c;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page); color: var(--text-primary);
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 650; }
+  .sub { color: var(--text-secondary); font-size: 14px; margin-top: 4px; max-width: 70ch; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; margin-top: 16px;
+  }
+  /* data loading */
+  .loader { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .loader input[type=file] { display: none; }
+  .btn {
+    font: inherit; font-size: 13px; font-weight: 550; cursor: pointer;
+    color: var(--text-primary); background: transparent;
+    border: 1px solid var(--baseline); border-radius: 7px; padding: 7px 13px;
+  }
+  .btn:hover { background: var(--grid); }
+  .loader .hint { color: var(--text-muted); font-size: 12.5px; }
+  body.dragover .card.loader-card { outline: 2px dashed var(--tier-1); outline-offset: 3px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+         background: var(--grid); padding: 1px 5px; border-radius: 4px; }
+  /* filter row */
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 20px; }
+  .filters .label { font-size: 12.5px; color: var(--text-muted); margin-right: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--baseline); border-radius: 7px; overflow: hidden; }
+  .seg button {
+    font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer;
+    background: transparent; border: 0; color: var(--text-secondary);
+  }
+  .seg button + button { border-left: 1px solid var(--baseline); }
+  .seg button[aria-pressed=true] { background: var(--grid); color: var(--text-primary); font-weight: 600; }
+  details.weights { margin-left: auto; font-size: 12.5px; color: var(--text-secondary); }
+  details.weights summary { cursor: pointer; user-select: none; }
+  details.weights .wrow { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+  details.weights label { display: flex; gap: 4px; align-items: center; }
+  details.weights input {
+    width: 58px; font: inherit; font-size: 12.5px; padding: 3px 6px;
+    border: 1px solid var(--baseline); border-radius: 5px;
+    background: var(--surface-1); color: var(--text-primary);
+  }
+  /* stat tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .t-label { font-size: 12.5px; color: var(--text-secondary); }
+  .tile .t-value { font-size: 30px; font-weight: 600; margin-top: 4px; }
+  .tile .t-note { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tile .t-value.good { color: var(--good); }
+  /* charts */
+  .chart-title { font-size: 14.5px; font-weight: 600; }
+  .chart-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 0 4px; }
+  .legend .key { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-secondary); }
+  .legend .swatch { width: 11px; height: 11px; border-radius: 3px; }
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .bar-hit { cursor: default; }
+  .bar-hit:focus { outline: none; }
+  .bar-hit:focus .bar-mark, .bar-hit:hover .bar-mark { filter: brightness(1.12); }
+  /* tooltip */
+  #tip {
+    position: fixed; z-index: 10; pointer-events: none; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18); padding: 9px 11px; font-size: 12.5px;
+    max-width: 300px;
+  }
+  #tip .tp-title { color: var(--text-muted); font-size: 11.5px; margin-bottom: 5px; }
+  #tip .tp-row { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+  #tip .tp-key { width: 12px; height: 0; border-top: 3px solid; border-radius: 2px; }
+  #tip .tp-val { font-weight: 650; }
+  #tip .tp-name { color: var(--text-secondary); }
+  /* table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  th { text-align: left; color: var(--text-muted); font-size: 12px; font-weight: 550;
+       border-bottom: 1px solid var(--baseline); padding: 6px 8px; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .empty { color: var(--text-muted); font-size: 13.5px; padding: 26px 0; text-align: center; }
+  footer { margin-top: 22px; color: var(--text-muted); font-size: 12.5px; max-width: 80ch; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Router Ledger Dashboard</h1>
+  <p class="sub">Reads the measurement ledger written by the <strong>model-effort-router</strong>
+  PostToolUse hook (<code>~/.claude/router-ledger.jsonl</code>) and shows how your delegated
+  work distributes across model tiers. Everything runs locally in this file — no network, no upload.</p>
+
+  <div class="card loader-card">
+    <div class="loader">
+      <button class="btn" id="pickBtn">Open router-ledger.jsonl…</button>
+      <input type="file" id="fileInput" accept=".jsonl,.json,.txt,.log">
+      <button class="btn" id="demoBtn">Load demo data</button>
+      <span class="hint" id="loadHint">or drag the file anywhere on this page</span>
+    </div>
+  </div>
+
+  <div class="filters" id="filters" hidden>
+    <span class="label">Range</span>
+    <div class="seg" id="rangeSeg" role="group" aria-label="Date range">
+      <button data-days="7">7d</button>
+      <button data-days="30">30d</button>
+      <button data-days="90">90d</button>
+      <button data-days="0" aria-pressed="true">All</button>
+    </div>
+    <details class="weights">
+      <summary>Cost weights (relative units per delegation)</summary>
+      <div class="wrow">
+        <label>T1 <input type="number" id="w1" value="1" min="0" step="0.5"></label>
+        <label>T2 <input type="number" id="w2" value="3" min="0" step="0.5"></label>
+        <label>T3 <input type="number" id="w3" value="15" min="0" step="0.5"></label>
+        <label>T4 <input type="number" id="w4" value="30" min="0" step="0.5"></label>
+      </div>
+    </details>
+  </div>
+
+  <div id="content" hidden>
+    <div class="tiles" id="tiles"></div>
+
+    <div class="card">
+      <div class="chart-title">Delegations by tier</div>
+      <div class="chart-sub">Count of agent spawns per routed tier in the selected range</div>
+      <div id="tierChart"></div>
+    </div>
+
+    <div class="card">
+      <div class="chart-title">Delegations over time</div>
+      <div class="chart-sub" id="timeSub">Stacked daily counts by tier</div>
+      <div class="legend" id="timeLegend"></div>
+      <div id="timeChart"></div>
+    </div>
+
+    <div class="card">
+      <div class="chart-title">Recent delegations</div>
+      <div class="chart-sub">Newest first — the table is the full-fidelity view of every charted value</div>
+      <div style="overflow-x:auto">
+        <table id="ledgerTable">
+          <thead><tr>
+            <th>Time (local)</th><th>Tier</th><th>Model</th><th>Agent type</th><th>Task description</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="empty" id="tableEmpty" hidden>No delegations in the selected range.</div>
+    </div>
+  </div>
+
+  <footer>
+    <p><strong>Honest numbers:</strong> the ledger records one line per delegation (time, model,
+    agent type, description) but not token counts, so the cost index is a <em>relative</em> proxy —
+    each delegation weighted by its tier's typical price ratio (editable above). Entries with no
+    explicit model (<em>inherit</em>) are counted at the T4 weight, since they inherit the main-loop
+    model — that worst-case assumption is exactly what the enforcement hook exists to prevent.</p>
+    <p style="margin-top:8px">Get the hook that writes the ledger from the
+    <em>Enforcement and measurement</em> section of the model-effort-router README.</p>
+  </footer>
+</div>
+
+<div id="tip" role="status"></div>
+
+<script>
+"use strict";
+const TIERS = [
+  { id: "T1", label: "T1 — Light",    match: /haiku/i,  color: "var(--tier-1)" },
+  { id: "T2", label: "T2 — Standard", match: /sonnet/i, color: "var(--tier-2)" },
+  { id: "T3", label: "T3 — Deep",     match: /opus/i,   color: "var(--tier-3)" },
+  { id: "T4", label: "T4 — Frontier", match: /fable|mythos/i, color: "var(--tier-4)" },
+  { id: "IN", label: "Inherit / unknown", match: null,  color: "var(--tier-inherit)" },
+];
+const tierOf = (model) => {
+  if (!model || model === "inherit") return "IN";
+  const hit = TIERS.find(t => t.match && t.match.test(model));
+  return hit ? hit.id : "IN";
+};
+const tierMeta = (id) => TIERS.find(t => t.id === id);
+
+let rows = [];          // {t: Date, model, tier, type, desc}
+let rangeDays = 0;      // 0 = all
+
+// ---------- data loading ----------
+function parseLedger(text) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const s = line.trim();
+    if (!s) continue;
+    try {
+      const o = JSON.parse(s);
+      const t = new Date(o.t);
+      if (isNaN(t)) continue;
+      const model = (o.model || "inherit") + "";
+      out.push({ t, model, tier: tierOf(model), type: (o.type || "") + "", desc: (o.desc || "") + "" });
+    } catch { /* skip malformed lines */ }
+  }
+  out.sort((a, b) => a.t - b.t);
+  return out;
+}
+
+function loadText(text, sourceName) {
+  const parsed = parseLedger(text);
+  if (!parsed.length) {
+    document.getElementById("loadHint").textContent =
+      "No valid ledger lines found in " + sourceName + " — expected one JSON object per line.";
+    return;
+  }
+  rows = parsed;
+  document.getElementById("loadHint").textContent =
+    parsed.length + " delegations loaded from " + sourceName + ".";
+  document.getElementById("filters").hidden = false;
+  document.getElementById("content").hidden = false;
+  render();
+}
+
+const fileInput = document.getElementById("fileInput");
+document.getElementById("pickBtn").addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+  const f = fileInput.files[0];
+  if (!f) return;
+  f.text().then(t => loadText(t, f.name));
+});
+["dragover", "dragenter"].forEach(ev =>
+  document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add("dragover"); }));
+["dragleave", "drop"].forEach(ev =>
+  document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.remove("dragover"); }));
+document.addEventListener("drop", e => {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) f.text().then(t => loadText(t, f.name));
+});
+
+document.getElementById("demoBtn").addEventListener("click", () => {
+  const tiers = ["haiku","haiku","haiku","haiku","sonnet","sonnet","sonnet","opus","opus","inherit","fable"];
+  const types = ["Explore","general-purpose","claude","Plan"];
+  const descs = ["Find config loader","Summarize CI log","Add --verbose flag + test","Refactor auth module",
+    "Debug corrupt output file","Security review of session code","Rename helper across repo",
+    "Write unit tests for parser","Verify release notes","Root-cause intermittent crash"];
+  const now = Date.now(), lines = [];
+  let seed = 42;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let d = 44; d >= 0; d--) {
+    const n = 1 + Math.floor(rnd() * 6);
+    for (let i = 0; i < n; i++) {
+      const ts = new Date(now - d * 864e5 - Math.floor(rnd() * 10 * 36e5));
+      lines.push(JSON.stringify({ t: ts.toISOString(), model: tiers[Math.floor(rnd() * tiers.length)],
+        type: types[Math.floor(rnd() * types.length)], desc: descs[Math.floor(rnd() * descs.length)] }));
+    }
+  }
+  loadText(lines.join("\n"), "demo data");
+});
+
+// ---------- filters ----------
+document.getElementById("rangeSeg").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  rangeDays = +b.dataset.days;
+  for (const btn of e.currentTarget.querySelectorAll("button"))
+    btn.setAttribute("aria-pressed", btn === b ? "true" : "false");
+  render();
+});
+for (const id of ["w1","w2","w3","w4"])
+  document.getElementById(id).addEventListener("input", render);
+
+function filtered() {
+  if (!rangeDays) return rows;
+  const cutoff = Date.now() - rangeDays * 864e5;
+  return rows.filter(r => r.t >= cutoff);
+}
+function weights() {
+  const v = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);
+  return { T1: v("w1"), T2: v("w2"), T3: v("w3"), T4: v("w4"), IN: v("w4") };
+}
+
+// ---------- tooltip ----------
+const tip = document.getElementById("tip");
+function showTip(x, y, title, items) {
+  tip.textContent = "";
+  const t = document.createElement("div");
+  t.className = "tp-title";
+  t.textContent = title;
+  tip.appendChild(t);
+  for (const it of items) {
+    const row = document.createElement("div"); row.className = "tp-row";
+    const key = document.createElement("span"); key.className = "tp-key";
+    key.style.borderTopColor = it.color;
+    const val = document.createElement("span"); val.className = "tp-val";
+    val.textContent = it.value;
+    const name = document.createElement("span"); name.className = "tp-name";
+    name.textContent = it.name;
+    row.append(key, val, name);
+    tip.appendChild(row);
+  }
+  tip.style.display = "block";
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.min(x + 14, innerWidth - r.width - 10) + "px";
+  tip.style.top = Math.min(y + 14, innerHeight - r.height - 10) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+
+// ---------- rendering ----------
+const fmtDay = d => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const svgEl = (tag, attrs) => {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+};
+const niceTicks = (max) => {
+  if (max <= 0) return [0, 1];
+  const step = [1,2,5].map(s => s * Math.pow(10, Math.floor(Math.log10(max)))).find(s => max / s <= 5)
+    || Math.pow(10, Math.ceil(Math.log10(max)));
+  const ticks = [];
+  for (let v = 0; v <= max + 1e-9; v += step) ticks.push(v);
+  if (ticks[ticks.length-1] < max) ticks.push(ticks[ticks.length-1] + step);
+  return ticks;
+};
+
+function render() {
+  const data = filtered();
+  renderTiles(data);
+  renderTierChart(data);
+  renderTimeChart(data);
+  renderTable(data);
+}
+
+function renderTiles(data) {
+  const w = weights();
+  const total = data.length;
+  const explicit = data.filter(r => r.tier !== "IN").length;
+  const idx = data.reduce((s, r) => s + w[r.tier], 0);
+  const worst = total * w.T4;
+  const savings = worst > 0 ? 1 - idx / worst : 0;
+  const counts = {};
+  for (const r of data) counts[r.tier] = (counts[r.tier] || 0) + 1;
+  const busiest = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+
+  const tiles = [
+    { label: "Delegations", value: total.toLocaleString(), note: rangeDays ? `last ${rangeDays} days` : "all time" },
+    { label: "Explicitly routed", value: total ? Math.round(100 * explicit / total) + "%" : "—",
+      note: (total - explicit) + " inherited the main-loop model" },
+    { label: "Cost index vs all-frontier", value: total ? "−" + Math.round(100 * savings) + "%" : "—",
+      note: `${Math.round(idx).toLocaleString()} vs ${Math.round(worst).toLocaleString()} units`, good: savings > 0 },
+    { label: "Busiest tier", value: busiest ? busiest[0] : "—",
+      note: busiest ? `${tierMeta(busiest[0]).label} · ${busiest[1]} spawns` : "" },
+  ];
+  const host = document.getElementById("tiles");
+  host.textContent = "";
+  for (const t of tiles) {
+    const el = document.createElement("div"); el.className = "tile";
+    const l = document.createElement("div"); l.className = "t-label"; l.textContent = t.label;
+    const v = document.createElement("div"); v.className = "t-value" + (t.good ? " good" : ""); v.textContent = t.value;
+    const n = document.createElement("div"); n.className = "t-note"; n.textContent = t.note;
+    el.append(l, v, n);
+    host.appendChild(el);
+  }
+}
+
+function renderTierChart(data) {
+  const host = document.getElementById("tierChart");
+  host.textContent = "";
+  const counts = TIERS.map(t => ({ ...t, n: data.filter(r => r.tier === t.id).length }));
+  const max = Math.max(1, ...counts.map(c => c.n));
+  const W = Math.min(host.clientWidth || 980, 980), labelW = 150, valW = 56;
+  const rowH = 34, barH = 20, H = counts.length * rowH + 8;
+  const plotW = W - labelW - valW;
+  const svg = svgEl("svg", { width: "100%", viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Bar chart of delegation counts by tier" });
+
+  counts.forEach((c, i) => {
+    const y = i * rowH + 6;
+    const w = Math.round(plotW * c.n / max);
+    const lbl = svgEl("text", { x: labelW - 10, y: y + barH / 2 + 4, "text-anchor": "end",
+      "font-size": 12.5, fill: "var(--text-secondary)" });
+    lbl.textContent = c.label;
+    svg.appendChild(lbl);
+    const g = svgEl("g", { class: "bar-hit", tabindex: 0, role: "img",
+      "aria-label": `${c.label}: ${c.n} delegations` });
+    // hit target spans the whole row, wider than the mark
+    g.appendChild(svgEl("rect", { x: labelW, y: y - 5, width: plotW + valW, height: rowH - 2, fill: "transparent" }));
+    if (c.n > 0) {
+      // square at baseline, 4px rounded data-end
+      const r = Math.min(4, w / 2);
+      const bar = svgEl("path", { class: "bar-mark", fill: c.color,
+        d: `M${labelW},${y} h${Math.max(0, w - r)} a${r},${r} 0 0 1 ${r},${r} v${barH - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${-Math.max(0, w - r)} z` });
+      svg.appendChild(g).appendChild(bar);
+    } else {
+      svg.appendChild(g);
+    }
+    const val = svgEl("text", { x: labelW + w + 8, y: y + barH / 2 + 4,
+      "font-size": 12.5, "font-weight": 600, fill: "var(--text-primary)" });
+    val.textContent = c.n.toLocaleString();
+    g.appendChild(val);
+    const tipHandler = (e) => showTip(e.clientX ?? 0, e.clientY ?? 0, c.label,
+      [{ color: getComputedStyle(document.documentElement).getPropertyValue(c.color.slice(4, -1)) || "#888",
+         value: c.n.toLocaleString(), name: "delegations" }]);
+    g.addEventListener("pointermove", tipHandler);
+    g.addEventListener("focus", (e) => { const r = g.getBoundingClientRect(); showTip(r.right - 60, r.top, c.label,
+      [{ color: "#888", value: c.n.toLocaleString(), name: "delegations" }]); });
+    g.addEventListener("pointerleave", hideTip);
+    g.addEventListener("blur", hideTip);
+  });
+  host.appendChild(svg);
+}
+
+function renderTimeChart(data) {
+  const host = document.getElementById("timeChart");
+  const legend = document.getElementById("timeLegend");
+  host.textContent = ""; legend.textContent = "";
+  if (!data.length) { host.appendChild(Object.assign(document.createElement("div"),
+    { className: "empty", textContent: "No delegations in the selected range." })); return; }
+
+  // bucket per day (per week past 90 buckets)
+  const dayMs = 864e5;
+  const first = new Date(data[0].t); first.setHours(0,0,0,0);
+  const last = new Date(data[data.length-1].t); last.setHours(0,0,0,0);
+  let span = Math.round((last - first) / dayMs) + 1;
+  const weekly = span > 90;
+  const bucketMs = weekly ? 7 * dayMs : dayMs;
+  document.getElementById("timeSub").textContent =
+    weekly ? "Stacked weekly counts by tier" : "Stacked daily counts by tier";
+  const nBuckets = Math.ceil(span / (weekly ? 7 : 1));
+  const buckets = Array.from({ length: nBuckets }, (_, i) => ({
+    t0: new Date(first.getTime() + i * bucketMs),
+    counts: Object.fromEntries(TIERS.map(t => [t.id, 0])),
+  }));
+  for (const r of data) {
+    const i = Math.min(nBuckets - 1, Math.floor((r.t - first) / bucketMs));
+    if (i >= 0) buckets[i].counts[r.tier]++;
+  }
+
+  // legend (≥2 series → always present)
+  for (const t of TIERS) {
+    const key = document.createElement("span"); key.className = "key";
+    const sw = document.createElement("span"); sw.className = "swatch"; sw.style.background = t.color;
+    key.append(sw, document.createTextNode(t.label));
+    legend.appendChild(key);
+  }
+
+  const W = Math.min(host.clientWidth || 980, 980), H = 240;
+  const padL = 36, padR = 8, padT = 8, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxStack = Math.max(1, ...buckets.map(b => TIERS.reduce((s, t) => s + b.counts[t.id], 0)));
+  const ticks = niceTicks(maxStack);
+  const yMax = ticks[ticks.length - 1];
+  const y = v => padT + plotH * (1 - v / yMax);
+  const bandW = plotW / nBuckets;
+  const colW = Math.min(24, Math.max(4, bandW - 6));
+  const GAP = 2; // surface gap between stacked segments
+
+  const svg = svgEl("svg", { width: "100%", viewBox: `0 0 ${W} ${H}`, role: "img",
+    "aria-label": "Stacked column chart of delegations over time by tier" });
+  // hairline grid + clean ticks
+  for (const tv of ticks) {
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: y(tv), y2: y(tv),
+      stroke: tv === 0 ? "var(--baseline)" : "var(--grid)", "stroke-width": 1 }));
+    const lbl = svgEl("text", { x: padL - 6, y: y(tv) + 4, "text-anchor": "end",
+      "font-size": 11, fill: "var(--text-muted)", style: "font-variant-numeric: tabular-nums" });
+    lbl.textContent = tv.toLocaleString();
+    svg.appendChild(lbl);
+  }
+  // x labels: first, ~4 middles, last
+  const labelEvery = Math.max(1, Math.round(nBuckets / 5));
+  buckets.forEach((b, i) => {
+    if (i % labelEvery && i !== nBuckets - 1) return;
+    const lbl = svgEl("text", { x: padL + (i + 0.5) * bandW, y: H - 8, "text-anchor": "middle",
+      "font-size": 11, fill: "var(--text-muted)" });
+    lbl.textContent = fmtDay(b.t0);
+    svg.appendChild(lbl);
+  });
+  // columns
+  buckets.forEach((b, i) => {
+    const cx = padL + (i + 0.5) * bandW - colW / 2;
+    let acc = 0;
+    const total = TIERS.reduce((s, t) => s + b.counts[t.id], 0);
+    const g = svgEl("g", { class: "bar-hit", tabindex: total ? 0 : -1, role: "img",
+      "aria-label": `${fmtDay(b.t0)}: ${total} delegations` });
+    // full-band hit target — one tooltip, every series
+    g.appendChild(svgEl("rect", { x: padL + i * bandW, y: padT, width: bandW, height: plotH, fill: "transparent" }));
+    for (const t of TIERS) {
+      const n = b.counts[t.id];
+      if (!n) continue;
+      const y1 = y(acc + n), y0 = y(acc);
+      const h = Math.max(0, y0 - y1 - (acc > 0 ? GAP : 0));
+      const isTop = acc + n === total;
+      const r = isTop ? Math.min(4, colW / 2, h / 2) : 0;
+      const yTop = y1 + (acc > 0 ? 0 : 0);
+      const seg = r > 0
+        ? svgEl("path", { class: "bar-mark", fill: t.color,
+            d: `M${cx},${y0 - (acc > 0 ? GAP : 0)} v${-(h - r)} a${r},${r} 0 0 1 ${r},${-r} h${colW - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${h - r} z` })
+        : svgEl("rect", { class: "bar-mark", fill: t.color, x: cx, y: yTop, width: colW, height: h });
+      g.appendChild(seg);
+      acc += n;
+    }
+    const items = TIERS.filter(t => b.counts[t.id])
+      .map(t => ({ color: cssColor(t.color), value: b.counts[t.id].toLocaleString(), name: t.label }))
+      .reverse();
+    const title = (weekly ? "Week of " : "") + fmtDay(b.t0) + " · " + total + " total";
+    g.addEventListener("pointermove", e => total && showTip(e.clientX, e.clientY, title, items));
+    g.addEventListener("focus", () => { const rr = g.getBoundingClientRect(); total && showTip(rr.left, rr.top, title, items); });
+    g.addEventListener("pointerleave", hideTip);
+    g.addEventListener("blur", hideTip);
+    svg.appendChild(g);
+  });
+  host.appendChild(svg);
+}
+
+function cssColor(varExpr) {
+  const name = varExpr.startsWith("var(") ? varExpr.slice(4, -1) : varExpr;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#888";
+}
+
+function renderTable(data) {
+  const tbody = document.querySelector("#ledgerTable tbody");
+  tbody.textContent = "";
+  const recent = [...data].reverse().slice(0, 100);
+  document.getElementById("tableEmpty").hidden = recent.length > 0;
+  document.getElementById("ledgerTable").hidden = recent.length === 0;
+  for (const r of recent) {
+    const tr = document.createElement("tr");
+    const tds = [
+      r.t.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }),
+      null, r.model, r.type || "—", r.desc || "—",
+    ];
+    tds.forEach((v, i) => {
+      const td = document.createElement("td");
+      if (i === 1) {
+        const meta = tierMeta(r.tier);
+        const chip = document.createElement("span"); chip.className = "chip";
+        const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = meta.color;
+        chip.append(dot, document.createTextNode(r.tier));
+        td.appendChild(chip);
+      } else {
+        td.textContent = v; // untrusted ledger strings → textContent only
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+}
+
+addEventListener("resize", () => { if (rows.length) render(); });
+</script>
+</body>
+</html>

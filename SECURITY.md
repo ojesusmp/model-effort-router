@@ -1,17 +1,17 @@
-﻿# Security policy
+# Security policy
 
 ## Supported versions
 
 | Version | Supported |
 |---------|-----------|
-| `1.0.x` | Yes |
-| `< 1.0` | No (pre-release) |
+| `1.3.x` | Yes |
+| `< 1.3` | No — upgrade to the latest minor release |
 
 Security fixes are backported only to the most recent minor version line.
 
 ## Reporting a vulnerability
 
-If you discover a security issue in `model-effort-router` â€” for example a way to make the generated HTML execute arbitrary code, leak data, contact an external network, or otherwise behave outside its documented surface â€” please report it privately.
+If you discover a security issue in `model-effort-router` — for example a way to make the postinstall script write outside the Claude Code skills directory, or skill text that could be abused to steer an orchestrator into destructive behavior — please report it privately.
 
 ### How to report
 
@@ -35,10 +35,13 @@ Please include enough detail for a maintainer to reproduce and assess the issue:
 
 ## Threat model
 
-`model-effort-router` is a documentation-generation skill. Its security surface is intentionally small:
+`model-effort-router` is a single Markdown instruction file plus a small install script. Its security surface is intentionally tiny:
 
-- **In scope:** Generated HTML must not include external references, must not execute scripts, must not exfiltrate data, must not load fonts or images from the network. The postinstall script must not write outside the user's Claude Code skills directory.
-- **Out of scope:** Issues with the Claude Code platform itself, the user's terminal, or third-party skills are not handled here â€” please report those to their respective maintainers.
+- **In scope:**
+  - `SKILL.md` must remain plain instructions — no executable content, no external references, no data exfiltration, no text that instructs an orchestrator to bypass user permissions or perform destructive actions.
+  - `bin/install.mjs` must not write outside `~/.claude/skills/model-effort-router/`, must not execute downloaded code, and must not make network calls.
+  - The optional hooks documented in the README must stay read-and-log only (a reminder message and an append-only local ledger).
+- **Out of scope:** Issues with the Claude Code platform itself, the models' own behavior, the user's terminal, or third-party skills are not handled here — please report those to their respective maintainers.
 
 ## Past advisories
 

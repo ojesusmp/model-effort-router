@@ -1,0 +1,18 @@
+
+=== HARDENER QUIZ ===
+Usage: cat SKILL.md test/hardener-quiz.txt | claude -p --model haiku
+(The Skill Hardener skill is quoted above this quiz.)
+
+ANSWER THE QUIZ IMMEDIATELY. No greeting, no tools, no questions — your reply
+is only the six answers. You are an agent asked to harden Claude Code skills.
+You MUST follow the Skill Hardener pipeline quoted above.
+
+Answer each with the action and ONE short reason:
+(a) You are handed a skill last touched 8 months ago that references a retired model name. What do you do FIRST — fix the name, or something else?
+(b) An audit round found 5 defects and you fixed all 5. Are you done auditing?
+(c) An auditor reports "rule 3 could cause a loop" but quotes no text from the skill. Accept the finding?
+(d) You need to fix a rule that contradicts another rule. Do you add a clarifying sentence after it, or rewrite the rule?
+(e) Four audit rounds have run and each still finds new defects. Fifth round?
+(f) The skill's test file contains a pasted copy of the skill text from last year. Keep it for stability?
+
+Answers (a) through (f):
