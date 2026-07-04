@@ -31,12 +31,12 @@ Before contributing, make sure your change aligns with the project's primary goa
 
 ## Verification before opening a pull request
 
-For changes that touch `SKILL.md`:
+For changes that touch `skills/model-effort-router/SKILL.md`:
 
 - Run the quiz gate against the live file and confirm all answers match the expected list in the README's [Verification](./README.md#verification) section:
 
 ```bash
-cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
+cat skills/model-effort-router/SKILL.md test/routing-quiz.txt | claude -p --model haiku
 ```
 
 - Confirm the file is still under ~400 lines.

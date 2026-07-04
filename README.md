@@ -123,7 +123,7 @@ This is what keeps the skill alive across model generations:
 - **Only one model available** → every tier maps to it, and the rest of the skill still governs: scoping, the attempt budget, hand-off briefs, and non-author verification are about discipline, not price. The router works with *any* Claude lineup, including a lineup of one.
 - **Alias rejected at spawn time** → treated as removed: fallback toward the nearest existing tier in the same call, each distinct alias tried at most once per task, table corrected afterward. A task is never stalled on a table fix.
 - **No delegatable models at all** (no `model` parameter, or every alias rejected) → the router is inert: the work is done inline with the execution discipline and attempt budget intact, and the report says so.
-- **Maintenance is one edit**: update the "current alias" column in `SKILL.md`. If the table and the environment ever disagree, the environment wins.
+- **Maintenance is one edit**: update the "current alias" column in `skills/model-effort-router/SKILL.md`. If the table and the environment ever disagree, the environment wins.
 
 ### Execution discipline
 
@@ -254,7 +254,7 @@ and follow that pipeline against the target skill. Its own gate:
 
 ## Customization
 
-- **Model lineup changed?** Edit the "Current alias" column in `SKILL.md` — nothing else. Bands, rules, and the adaptation protocol are deliberately model-agnostic. If you installed via npm or git, make the same edit in your clone of this repo too: package updates overwrite the installed copy.
+- **Model lineup changed?** Edit the "Current alias" column in `skills/model-effort-router/SKILL.md` — nothing else. Bands, rules, and the adaptation protocol are deliberately model-agnostic. If you installed via npm or git, make the same edit in your clone of this repo too: package updates overwrite the installed copy.
 - **Different tier boundaries?** Move work types between the "Route here" cells. Keep the four-band structure: it matches how model families are actually positioned (fast / balanced / deep / flagship).
 - **Stricter escalation?** Change rule 2's "one retry, then one tier up" to your taste — e.g., two retries for expensive tiers.
 - **House discipline?** The four execution rules are a good default; append your own (e.g., "always run the linter") in the same numbered list.
@@ -273,7 +273,7 @@ The skill also ships verified by a baseline/with-skill comparison ("RED/GREEN"):
 To re-verify after editing the skill, run the bundled quiz mechanically (any cheap model works). The quiz contains only the questions — the live SKILL.md is concatenated in front, so the test can never drift from the rules it tests:
 
 ```bash
-cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
+cat skills/model-effort-router/SKILL.md test/routing-quiz.txt | claude -p --model haiku
 ```
 
 Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure, (i) stop — the ceiling tier is exhausted (2 attempts at T3 and at T4), terminal state: report what was tried and the exact blocker, no more spawns, (j) the hand-off brief: what T2 tried, the exact failures/evidence verbatim, and the success criterion, (k) all tiers map to the one alias; scoping, budget, and verification discipline unchanged, (l) no — prompt failure: fix the prompt, same tier. Any drift from those answers means your edit broke a rule.

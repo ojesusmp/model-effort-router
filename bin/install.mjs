@@ -62,7 +62,7 @@ try {
     mkdirSync(targetRoot, { recursive: true });
   }
 
-  copyFileIfExists("SKILL.md", targetRoot);
+  copyFileIfExists("SKILL.md", targetRoot, "skills/model-effort-router");
   copyFileIfExists("README.md", targetRoot);
   copyFileIfExists("LICENSE", targetRoot);
   copyFileIfExists("CHANGELOG.md", targetRoot);

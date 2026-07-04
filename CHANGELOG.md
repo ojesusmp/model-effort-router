@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-07-03
+
+### Fixed
+
+- **Plugin install now exposes the main skill.** The `model-effort-router`
+  skill lived at the repo root (`SKILL.md`), but Claude Code only
+  auto-discovers skills under `skills/<name>/`, so a `/plugin install` only
+  registered the companion `skill-hardener` and invoking the router returned
+  "Unknown skill". The skill now lives at `skills/model-effort-router/SKILL.md`
+  and is picked up by a plain plugin install (no npm postinstall needed).
+  Tooling (`bin/install.mjs`, `validate.mjs`, `package.json` files, README,
+  CONTRIBUTING) updated to the new path.
+
 ## [1.3.0] - 2026-07-02
 
 ### Added

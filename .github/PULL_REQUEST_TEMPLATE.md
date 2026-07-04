@@ -19,7 +19,7 @@ Closes #(issue number) — or "N/A" if no issue was filed.
 
 Confirm that the relevant checks from `CONTRIBUTING.md` were run. Tick all that apply:
 
-- [ ] `SKILL.md` changes: ran the quiz gate (`cat SKILL.md test/routing-quiz.txt | claude -p --model haiku`) and all answers match the expected list in the README; file under ~400 lines; frontmatter tab-free with trigger description intact.
+- [ ] `skills/model-effort-router/SKILL.md` changes: ran the quiz gate (`cat skills/model-effort-router/SKILL.md test/routing-quiz.txt | claude -p --model haiku`) and all answers match the expected list in the README; file under ~400 lines; frontmatter tab-free with trigger description intact.
 - [ ] Rule additions/changes: added or updated a quiz question covering the change, and updated the README's expected answers.
 - [ ] `bin/install.mjs` changes: ran `node bin/install.mjs --dry-run` and `npm pack --dry-run`; both produced expected output.
 - [ ] Version metadata: `package.json`, `.claude-plugin/marketplace.json`, and the newest `CHANGELOG.md` heading agree (when bumping a version).

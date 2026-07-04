@@ -15,7 +15,7 @@ function check(name, ok, detail = "") {
   }
 }
 
-const skill = readFileSync("SKILL.md", "utf8");
+const skill = readFileSync("skills/model-effort-router/SKILL.md", "utf8");
 const readme = readFileSync("README.md", "utf8");
 const changelog = readFileSync("CHANGELOG.md", "utf8");
 const quiz = readFileSync("test/routing-quiz.txt", "utf8");
@@ -106,9 +106,8 @@ check(
 
 // --- Packaged files exist ---
 check(
-  "package.json files list includes SKILL.md, test/, and skills/",
-  pkg.files.includes("SKILL.md") && pkg.files.includes("test/") &&
-    pkg.files.includes("skills/")
+  "package.json files list includes test/ and skills/",
+  pkg.files.includes("test/") && pkg.files.includes("skills/")
 );
 
 if (failures) {
