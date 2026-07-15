@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-07-15
+
+### Changed
+
+- **T4 gains a taste-phase gate.** Alongside the two existing T4 entry
+  conditions (a demonstrably failed T3 attempt, or an explicit user request
+  for maximum capability), a user may authorize **taste-phase routing**:
+  aesthetic-critical work — art direction, design systems, hero pages,
+  design/architecture docs — routes its taste phase directly to a
+  T4-pinned design agent (e.g. an `artisan` agent definition), and
+  execution of the resulting spec returns to T3. Rationale: the frontier
+  tier's design advantage concentrates in its defaults — typography,
+  committed palettes, motion orchestration, one-shot completeness —
+  rather than in raw execution, so routing only the taste kernel to T4
+  buys the quality without paying T4 prices for the build.
+- New quick example covering the gate, in SKILL.md and the README usage
+  table.
+
 ## [1.4.0] - 2026-07-15
 
 ### Added
@@ -277,6 +295,7 @@ defects at the seams of the fixes, also closed before release:
 - npm postinstall installer (`bin/install.mjs`), Claude Code plugin marketplace
   manifest, and full repository documentation.
 
+[1.4.1]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.4.1
 [1.4.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.4.0
 [1.3.1]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.3.1
 [1.3.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.3.0

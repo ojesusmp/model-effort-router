@@ -19,7 +19,7 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
 | **T1 — LIGHT** | fastest / cheapest available | `haiku` | lookups, file/code search, summaries, log reading, renames, formatting, simple doc edits, small verification passes |
 | **T2 — STANDARD** | mid generalist | `sonnet` | routine implementation, writing tests, single-module changes, standard refactors, README/API docs, standard verification |
 | **T3 — DEEP** | strongest routinely-delegated | `opus` | architecture, debugging with unknown cause, security review, multi-file refactors, planning, design synthesis, large/security verification |
-| **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, or the user explicitly asks for maximum capability |
+| **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, the user explicitly asks for maximum capability, or the user has authorized **taste-phase routing**: art direction, design systems, hero pages, and design/architecture docs go to a T4-pinned design agent (e.g. an `artisan` agent definition), and execution of the resulting spec returns to T3 |
 
 ## The effort dial (the half-step between tiers)
 
@@ -51,8 +51,9 @@ the dial is inert; route by tier alone.
    hand-off brief. Skip the same-tier retry when the evidence already shows a clear
    misroute: jump straight to the tier the evidence indicates instead of
    walking the ladder one rung at a time — topping out at T3, because T4's
-   gate (a demonstrably failed T3 attempt, or an explicit user request)
-   always holds. All of it inside the attempt budget below. State why you escalated in one line of your report to the user —
+   escalation gate (a demonstrably failed T3 attempt, or an explicit user
+   request) always holds; taste-phase routing is a pre-authorized dispatch,
+   never an escalation destination. All of it inside the attempt budget below. State why you escalated in one line of your report to the user —
    that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version
    often drops a whole tier. Split mixed tasks: the search part is T1 even
@@ -290,3 +291,6 @@ back to the spec.
   verifier gets the spec anchor + artifacts before delegation four.
 - "My own main-loop analysis failed twice at this tier" → one `ESCALATE`
   line to the user, pause that step; no third grind.
+- "Design a landing page that actually looks good" (taste-phase routing
+  authorized) → T4 design agent for direction, tokens, and the hero;
+  remaining pages to T3 against the returned spec.

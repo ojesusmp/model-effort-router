@@ -107,7 +107,7 @@ Tiers are **stable capability bands**. Only the "current alias" column ever chan
 | **T1 — LIGHT** | fastest / cheapest available | `haiku` | lookups, file/code search, summaries, log reading, renames, formatting, simple doc edits, small verification passes |
 | **T2 — STANDARD** | mid generalist | `sonnet` | routine implementation, writing tests, single-module changes, standard refactors, docs, standard verification |
 | **T3 — DEEP** | strongest routinely-delegated | `opus` | architecture, debugging with unknown cause, security review, multi-file refactors, planning, design synthesis, large/security verification |
-| **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, or the user explicitly asks for maximum capability |
+| **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, the user explicitly asks for maximum capability, or the user has authorized **taste-phase routing**: art direction, design systems, hero pages, and design/architecture docs go to a T4-pinned design agent (e.g. an `artisan` agent definition), and execution of the resulting spec returns to T3 |
 
 ### The effort dial
 
@@ -116,7 +116,7 @@ Tier buys capability; reasoning effort buys depth at the same tier. Where the en
 ### Routing rules
 
 1. **Pick the lowest tier that would succeed in one pass.** When hesitating between two tiers, take the lower — escalation is cheap, waste is not.
-2. **Escalate on evidence, never on prestige.** The ladder: one retry at the same tier — sharpened with the failure evidence, so never identical, and raised on the effort dial when the failure reads as shallow reasoning — then one tier up, always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). A clear misroute skips the ladder: the task jumps straight to the tier the evidence indicates — topping out at T3, because T4's gate (a demonstrably failed T3 attempt or an explicit user request) always holds. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
+2. **Escalate on evidence, never on prestige.** The ladder: one retry at the same tier — sharpened with the failure evidence, so never identical, and raised on the effort dial when the failure reads as shallow reasoning — then one tier up, always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). A clear misroute skips the ladder: the task jumps straight to the tier the evidence indicates — topping out at T3, because T4's escalation gate (a demonstrably failed T3 attempt or an explicit user request) always holds; taste-phase routing is a pre-authorized dispatch, never an escalation destination. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version often drops a whole tier. Mixed tasks get split: the search part is T1 even when the fix part is T3.
 4. **Verification is sized like work — but consequence outranks size.** Small → T1, standard → T2, large or security-sensitive → T3. Exception: anything that publishes, ships to production, or is hard to reverse gets at least T2 verification by an agent that didn't author it (T3 when the blast radius is real), no matter how small the change. A cheap author checked by an equally cheap reviewer is a correlated failure.
 5. **The main loop delegates — above the overhead line.** When the main conversation runs on a top-tier model, doing T1/T2 work inline is the same mistake as routing it to T4. But a subagent spawn has real fixed cost: one-liners and single lookups are done inline. Delegation pays for real work, not micro-tasks.
@@ -206,6 +206,7 @@ Agents are organelles, not soloists — like a cell, the system's output depends
 | "The T2 agent missed an edge case on a judgment-heavy task" | Same tier, higher effort dial — the half-step before T3 |
 | "Third delegation of the build just finished" | A checkpoint: fresh-context verifier gets the spec anchor + artifacts before delegation four |
 | "My own main-loop analysis failed twice" | One `ESCALATE` line to the user, that step paused — no third grind |
+| "Design a landing page that actually looks good" (taste-phase routing authorized) | T4 design agent for direction, tokens, and the hero; remaining pages to T3 against the returned spec |
 
 ---
 
