@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "TruePointAgents marketplace hosting the model-effort-router Claude Code skill.",
-    "version": "1.3.1"
+    "version": "1.4.0"
   },
   "plugins": [
     {
       "name": "model-effort-router",
       "source": ".",
       "description": "Routes every delegated task to the cheapest model tier that can do it well (light/standard/deep/frontier), escalates only on evidence within a hard attempt budget that can never loop, adapts automatically when models are added, renamed, or removed, and makes agents cooperate: cheap scouts feed context to bigger workers, every escalation hands forward the failure evidence, and verification is always done by fresh eyes.",
-      "version": "1.3.1",
+      "version": "1.4.0",
       "category": "orchestration",
       "tags": ["model-routing", "delegation", "subagents", "cost-optimization", "orchestration"],
       "license": "MIT",

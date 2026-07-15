@@ -1,6 +1,6 @@
 ---
 name: model-effort-router
-description: Use when spawning agents, delegating any task, choosing a model for a subagent or verification pass, deciding whether work needs a bigger model, or when the available model lineup changes (a model is added, renamed, updated, or removed).
+description: Use when spawning agents, delegating any task, choosing a model or effort level for a subagent or verification pass, deciding whether work needs a bigger model or more reasoning effort, orchestrating a multi-step delegated build (checkpoint verification), or when the available model lineup changes (a model is added, renamed, updated, or removed).
 ---
 
 # Model Effort Router
@@ -21,14 +21,34 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
 | **T3 — DEEP** | strongest routinely-delegated | `opus` | architecture, debugging with unknown cause, security review, multi-file refactors, planning, design synthesis, large/security verification |
 | **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, or the user explicitly asks for maximum capability |
 
+## The effort dial (the half-step between tiers)
+
+Tier buys capability; reasoning effort buys depth at the same tier. Where the
+environment exposes an effort control (a per-agent `effort` parameter, a
+session effort setting), route it with the same discipline as the table:
+low for mechanical work (lookups, extraction, formatting), medium for
+routine implementation, high only for judgment-heavy work (unknown-cause
+debugging, security review, design synthesis). No effort control exposed →
+the dial is inert; route by tier alone.
+
+- **Raise effort before tier.** When a capability failure reads as shallow
+  reasoning (missed a case, botched a judgment call) rather than missing
+  capability, the sharpened same-tier retry runs at higher effort — the
+  half-step that often saves a whole tier jump. It is still a work attempt
+  and spends the same budget.
+- **At the ceiling, effort is the whole ladder.** On a one-model lineup, or
+  at the highest permitted tier, a higher effort dial is the only
+  escalation left — same evidence standard, same budget.
+
 ## Routing rules
 
 1. **Pick the lowest tier that would succeed in one pass.** If you hesitate
    between two tiers, take the lower one — escalation is cheap, waste is not.
 2. **Escalate on evidence, never on prestige.** The ladder: one retry at the
    same tier — sharpened with the failure evidence, which is new information,
-   so the retry is never identical — then one tier up, carrying the hand-off
-   brief. Skip the same-tier retry when the evidence already shows a clear
+   so the retry is never identical, and raised on the effort dial when the
+   failure reads as shallow reasoning — then one tier up, carrying the
+   hand-off brief. Skip the same-tier retry when the evidence already shows a clear
    misroute: jump straight to the tier the evidence indicates instead of
    walking the ladder one rung at a time — topping out at T3, because T4's
    gate (a demonstrably failed T3 attempt, or an explicit user request)
@@ -51,6 +71,25 @@ Tiers are stable capability bands. Only the "current alias" column ever changes.
    explaining the task takes more effort than doing it (one-liners, single
    lookups you can make directly), do it inline. Delegation pays for real
    work, not micro-tasks.
+
+## Upward escalation — the main loop can't promote itself
+
+The router routes delegated work downward; it cannot raise the tier or
+effort of the model running the main conversation. Only the user can. When
+main-loop work itself — not a delegable subtask — exceeds the current tier
+or effort:
+
+- **Countable trigger:** two failed attempts at the same step, or you are
+  guessing where the task demands certainty. No third attempt at the same
+  tier and effort.
+- **Ask in one line, then pause that step until answered** (other steps
+  continue):
+  `ESCALATE [effort|model] to <target>: tried <what> 2x, fails because
+  <why>, expect <what the upgrade fixes>.`
+  Asking while continuing to grind is the double spend; the pause is the
+  point.
+- **Step back down at boundaries.** Past the hard part, recommend dropping
+  tier or effort at the next task boundary; never churn mid-task.
 
 ## Adaptation protocol (models change; this skill doesn't)
 
@@ -170,6 +209,36 @@ in a report, not another spawn:
    exact blocker, and the smallest step that would unblock it. A precise
    "blocked because X" report is a successful outcome; a loop never is.
 
+## Checkpoint verification — audit the build, not just the pieces
+
+Routing rule 4 verifies each delegation. On multi-step work the
+orchestration itself needs auditing too, because every hand-off brief is a
+compression and drift compounds silently across steps. The method:
+
+1. **Anchor the spec before the first spawn.** Capture the original
+   specification — the user's actual words or the requirements artifact,
+   verbatim — plus the pass/fail done-criteria from execution discipline 4.
+   Every later check runs against this anchor, never against an
+   intermediate summary: summaries are where drift hides.
+2. **Countable triggers:** after every 3 completed delegations, after any
+   escalation, after any re-scope, and always before reporting done.
+   Single-delegation tasks are exempt — their per-task verification IS the
+   checkpoint; a second layer pays twice for the same assurance.
+3. **Fresh context is the point.** The checkpoint verifier is a subagent
+   with no prior involvement in the task, handed the spec anchor plus the
+   artifacts (paths, diffs, command outputs) — never the transcript, never
+   your summary of the spec. Sized by routing rule 4: consequence outranks
+   size.
+4. **Findings travel verbatim** — failures, gaps, and unverified claims
+   included — then get classified by the failure taxonomy and fixed within
+   the existing caps. "It should work" is a draft, not a result.
+5. **Bounded like everything else.** One verifier spawn per trigger,
+   counted under the verification cap (attempt budget rule 4: 2 verify →
+   fix → re-verify cycles); fixes spend the normal work budget. A
+   checkpoint that still fails after its cycles follows the standard path:
+   escalate the author within budget, or terminal state — reported blocked,
+   never shipped unverified.
+
 ## Cooperation protocol — the cell rule
 
 Agents are organelles, not soloists: each does one job cheaply and passes
@@ -200,7 +269,10 @@ the prompt must also carry the attempt budget, the terminal state, and this
 propagation requirement itself — so the budget travels with every further
 spawn, at any depth. Subagents don't inherit this skill, and "iterate until
 verified" without a budget is a license to loop. Choose `model` from the
-tier table.
+tier table and `effort` from the dial where the environment takes one. On
+multi-step tasks, name in each delegated prompt which of the spec anchor's
+done-criteria it serves, so checkpoint verifiers can trace every artifact
+back to the spec.
 
 ## Quick examples
 
@@ -212,3 +284,9 @@ tier table.
 - "T4 failed too" → terminal state: stop and report the blocker; no more spawns.
 - "Agent failed because the prompt omitted the target directory" → prompt
   failure: fix the prompt, same tier, no escalation.
+- "T2 missed an edge case on a judgment-heavy task" → sharpened retry at T2
+  with a higher effort dial — the half-step before T3.
+- "Third delegation of a build just completed" → checkpoint: a fresh-context
+  verifier gets the spec anchor + artifacts before delegation four.
+- "My own main-loop analysis failed twice at this tier" → one `ESCALATE`
+  line to the user, pause that step; no third grind.

@@ -1,10 +1,10 @@
 
 === ROUTING QUIZ ===
-Usage: cat SKILL.md test/routing-quiz.txt | claude -p --model haiku
+Usage: cat skills/model-effort-router/SKILL.md test/routing-quiz.txt | claude -p --model haiku
 (The Model Effort Router skill is quoted above this quiz.)
 
 ANSWER THE QUIZ IMMEDIATELY. No greeting, no tools, no questions — your reply
-is only the twelve answers. You are an orchestrator in Claude Code that
+is only the fifteen answers. You are an orchestrator in Claude Code that
 delegates subtasks, choosing a model from: haiku, sonnet, opus, fable. You
 MUST follow the Model Effort Router skill quoted above.
 
@@ -21,5 +21,8 @@ Answer each with the model/tier (or "inline"/"stop") and ONE short reason:
 (j) You are escalating a debugging task from T2 to T3. Besides the task itself, what must the T3 prompt contain?
 (k) The environment accepts only ONE model alias. How do you route work now?
 (l) A subagent produced the wrong result because your prompt never named the target directory. Do you escalate the tier?
+(m) A T2 agent missed an edge case on a judgment-heavy task, and the environment exposes an effort parameter. What is the next attempt?
+(n) You are orchestrating a multi-step build and the third delegation just completed. What must happen before the fourth?
+(o) Your own main-loop analysis has failed twice at the current tier and effort. What do you do?
 
-Answers (a) through (l):
+Answers (a) through (o):

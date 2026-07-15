@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-15
+
+### Added
+
+- **The effort dial**: reasoning effort is now a routing lever alongside
+  model tier. Defaults per work type (low mechanical / medium routine /
+  high judgment-heavy); a capability failure that reads as shallow
+  reasoning gets its sharpened same-tier retry at higher effort — the
+  half-step before a tier jump — counted inside the existing 2-per-tier
+  attempt budget, never as a third attempt. At the ceiling tier or on a
+  one-model lineup, effort is the only ladder left; environments with no
+  effort control leave the dial inert.
+- **Upward escalation**: the router routes downward and cannot promote the
+  main loop — only the user can. New rule: after two failed attempts at
+  the same main-loop step (or guessing where the task demands certainty),
+  emit a one-line request — `ESCALATE [effort|model] to <target>: tried
+  <what> 2x, fails because <why>, expect <what the upgrade fixes>` — and
+  pause that step until answered; other steps continue. Step back down at
+  the next task boundary, never mid-task.
+- **Checkpoint verification** for multi-step builds: the original
+  specification is captured verbatim as an anchor (with pass/fail
+  done-criteria) before the first spawn; at countable triggers (every 3
+  completed delegations, any escalation, any re-scope, before reporting
+  done) a fresh-context non-author subagent checks the accumulated
+  artifacts against the anchor — never against summaries, which is where
+  drift hides. Findings travel verbatim, are classified by the failure
+  taxonomy, and are fixed within the existing verification cap; work that
+  cannot pass is reported blocked, never shipped unverified.
+  Single-delegation tasks are exempt (their per-task verification is the
+  checkpoint).
+- Quiz questions (m)–(o) covering the effort half-step, the checkpoint
+  trigger, and the upward-escalation request, with expected answers in
+  the README.
+
+### Changed
+
+- Frontmatter description now also triggers on effort-level decisions and
+  multi-step build orchestration (checkpoint verification).
+- Routing rule 2's sharpened retry may raise the effort dial; the
+  delegated-prompt template chooses `effort` where the environment takes
+  one and names which spec-anchor done-criteria each delegated prompt
+  serves.
+- README: intro, how-it-works, usage examples, expected quiz answers, and
+  Limitations updated for the three new rules (the main-loop limitation
+  is now "can't change it — but knows when to ask you").
+
+### Verified
+
+- Fresh-context T3 audit of the edited SKILL.md against a
+  24-sub-criterion spec: all PASS with line-anchored evidence, zero
+  defects, and all nine quick examples reproduced from the rules alone.
+- Behavioral quiz gate on a low-tier model: 15/15, including the three
+  new probes (m)–(o).
+
 ## [1.3.1] - 2026-07-03
 
 ### Fixed
@@ -223,6 +277,8 @@ defects at the seams of the fixes, also closed before release:
 - npm postinstall installer (`bin/install.mjs`), Claude Code plugin marketplace
   manifest, and full repository documentation.
 
+[1.4.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.4.0
+[1.3.1]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.3.1
 [1.3.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ojesusmp/model-effort-router/releases/tag/v1.1.0

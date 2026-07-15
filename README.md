@@ -14,6 +14,8 @@ It also embeds an execution discipline into every routed task — surface assump
 
 Since v1.3.0 the router is also **guaranteed to terminate** (a hard attempt budget with a defined terminal state — no retry loop, no runaway spawning, at any delegation depth) and **cooperative by design**: cheap scouts gather context for bigger workers, every escalation hands forward the failure evidence so no tier pays for the same discovery twice, and verification is always done by fresh eyes.
 
+Since v1.4.0 it also routes **reasoning effort**, not just model tier (raise effort before tier — the half-step that often saves a whole jump), knows what to do when the **main loop itself** is outmatched (a one-line escalation request to the user, pausing the failing step — the router can't promote itself), and **audits multi-step builds at checkpoints**: a fresh-context verifier checks the accumulated work against the original specification, never against summaries, which is where drift hides.
+
 ---
 
 ## Table of contents
@@ -22,11 +24,14 @@ Since v1.3.0 the router is also **guaranteed to terminate** (a hard attempt budg
 - [Install](#install)
 - [How it works](#how-it-works)
   - [The tier table](#the-tier-table)
+  - [The effort dial](#the-effort-dial)
   - [Routing rules](#routing-rules)
+  - [Upward escalation](#upward-escalation)
   - [Adaptation protocol](#adaptation-protocol)
   - [Execution discipline](#execution-discipline)
   - [Failure taxonomy](#failure-taxonomy)
   - [Attempt budget](#attempt-budget)
+  - [Checkpoint verification](#checkpoint-verification)
   - [Cooperation protocol](#cooperation-protocol)
 - [Usage examples](#usage-examples)
 - [Making it always-on](#making-it-always-on)
@@ -104,13 +109,25 @@ Tiers are **stable capability bands**. Only the "current alias" column ever chan
 | **T3 — DEEP** | strongest routinely-delegated | `opus` | architecture, debugging with unknown cause, security review, multi-file refactors, planning, design synthesis, large/security verification |
 | **T4 — FRONTIER** | top model available | `fable` | only when a T3 attempt demonstrably failed, or the user explicitly asks for maximum capability |
 
+### The effort dial
+
+Tier buys capability; reasoning effort buys depth at the same tier. Where the environment exposes an effort control, the router sets it with the same discipline as the table: low for mechanical work, medium for routine implementation, high only for judgment-heavy work. When a failure reads as shallow reasoning (a missed case, a botched judgment call) rather than missing capability, the sharpened same-tier retry runs at **higher effort** — the half-step that often saves a whole tier jump — and it still counts against the same attempt budget. At the ceiling tier, or on a one-model lineup, effort is the only ladder left — same evidence standard, same budget. No effort control in the environment → the dial is inert and routing is by tier alone.
+
 ### Routing rules
 
 1. **Pick the lowest tier that would succeed in one pass.** When hesitating between two tiers, take the lower — escalation is cheap, waste is not.
-2. **Escalate on evidence, never on prestige.** The ladder: one retry at the same tier — sharpened with the failure evidence, so never identical — then one tier up, always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). A clear misroute skips the ladder: the task jumps straight to the tier the evidence indicates — topping out at T3, because T4's gate (a demonstrably failed T3 attempt or an explicit user request) always holds. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
+2. **Escalate on evidence, never on prestige.** The ladder: one retry at the same tier — sharpened with the failure evidence, so never identical, and raised on the effort dial when the failure reads as shallow reasoning — then one tier up, always within the [attempt budget](#attempt-budget), always carrying the [hand-off brief](#cooperation-protocol). A clear misroute skips the ladder: the task jumps straight to the tier the evidence indicates — topping out at T3, because T4's gate (a demonstrably failed T3 attempt or an explicit user request) always holds. The reason for escalating is stated in one line of the report to the user — that line is the routing record.
 3. **Shrink before you route.** A task scoped to its smallest correct version often drops a whole tier. Mixed tasks get split: the search part is T1 even when the fix part is T3.
 4. **Verification is sized like work — but consequence outranks size.** Small → T1, standard → T2, large or security-sensitive → T3. Exception: anything that publishes, ships to production, or is hard to reverse gets at least T2 verification by an agent that didn't author it (T3 when the blast radius is real), no matter how small the change. A cheap author checked by an equally cheap reviewer is a correlated failure.
 5. **The main loop delegates — above the overhead line.** When the main conversation runs on a top-tier model, doing T1/T2 work inline is the same mistake as routing it to T4. But a subagent spawn has real fixed cost: one-liners and single lookups are done inline. Delegation pays for real work, not micro-tasks.
+
+### Upward escalation
+
+The router routes delegated work downward; it cannot raise the tier or effort of the model running the main conversation — only the user can. When main-loop work itself fails twice at the same step (or the orchestrator catches itself guessing where the task demands certainty), it asks in one line and **pauses that step until answered** (other steps continue):
+
+`ESCALATE [effort|model] to <target>: tried <what> 2x, fails because <why>, expect <what the upgrade fixes>.`
+
+Asking while continuing to grind is the double spend the rule exists to prevent. Past the hard part, the router recommends stepping back down at the next task boundary — never mid-task.
 
 ### Adaptation protocol
 
@@ -158,6 +175,10 @@ This is the anti-loop guarantee. Every routed task carries a hard budget, and wh
 4. **Verification has its own cap: 2 verify → fix → re-verify cycles.** Verifier spawns don't count as work spawns; a rejection is classified by the failure taxonomy, and after the second rejection the author escalates within the remaining budget or the task goes to the terminal state. An escalated author gets one fresh verification cap — once; if that is spent too, terminal state. Consequence-bearing work that cannot pass verification is reported as blocked, never shipped unverified.
 5. **Terminal state.** When the ceiling tier fails or the budget is spent, the orchestrator STOPS and reports: what was tried at which tiers, what is now known, the exact blocker, and the smallest unblocking step. A precise "blocked because X" report is a successful outcome; a loop never is.
 
+### Checkpoint verification
+
+Routing rule 4 verifies each delegation; on multi-step work the orchestration itself is audited too, because every hand-off brief is a compression and drift compounds silently. Before the first spawn, the original specification is captured **verbatim** as the anchor, along with pass/fail done-criteria. Then, at countable triggers — every 3 completed delegations, any escalation, any re-scope, and always before reporting done — a **fresh-context subagent that authored nothing** checks the accumulated artifacts against that anchor, never against the transcript or a summary (summaries are where drift hides). Findings are reported verbatim, classified by the failure taxonomy, and fixed within the existing caps: one verifier spawn per trigger, 2 verify → fix → re-verify cycles, and work that cannot pass is reported blocked, never shipped unverified. Single-delegation tasks are exempt — their per-task verification is already the checkpoint.
+
 ### Cooperation protocol
 
 Agents are organelles, not soloists — like a cell, the system's output depends on parts doing one job each and handing usable material to the next:
@@ -182,6 +203,9 @@ Agents are organelles, not soloists — like a cell, the system's output depends
 | "Review this auth change for security issues" | T3 (DEEP — security verification) |
 | "T4 failed too" | Nowhere — terminal state: stop and report the exact blocker |
 | "Agent failed because my prompt omitted the target dir" | Same tier with a fixed prompt (prompt failure ≠ capability failure) |
+| "The T2 agent missed an edge case on a judgment-heavy task" | Same tier, higher effort dial — the half-step before T3 |
+| "Third delegation of the build just finished" | A checkpoint: fresh-context verifier gets the spec anchor + artifacts before delegation four |
+| "My own main-loop analysis failed twice" | One `ESCALATE` line to the user, that step paused — no third grind |
 
 ---
 
@@ -276,7 +300,7 @@ To re-verify after editing the skill, run the bundled quiz mechanically (any che
 cat skills/model-effort-router/SKILL.md test/routing-quiz.txt | claude -p --model haiku
 ```
 
-Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure, (i) stop — the ceiling tier is exhausted (2 attempts at T3 and at T4), terminal state: report what was tried and the exact blocker, no more spawns, (j) the hand-off brief: what T2 tried, the exact failures/evidence verbatim, and the success criterion, (k) all tiers map to the one alias; scoping, budget, and verification discipline unchanged, (l) no — prompt failure: fix the prompt, same tier. Any drift from those answers means your edit broke a rule.
+Expected: (a) T1, (b) T2, (c) T3, (d) T1, (e) T4 with the removal reasoning, (f) at-least-T2 verification by a non-author citing consequence, (g) inline, (h) retry once at the same tier without escalating — a greeting-only reply is harness failure, not model failure, (i) stop — the ceiling tier is exhausted (2 attempts at T3 and at T4), terminal state: report what was tried and the exact blocker, no more spawns, (j) the hand-off brief: what T2 tried, the exact failures/evidence verbatim, and the success criterion, (k) all tiers map to the one alias; scoping, budget, and verification discipline unchanged, (l) no — prompt failure: fix the prompt, same tier, (m) a sharpened same-tier retry at a higher effort dial — the half-step before a tier jump, (n) a checkpoint: a fresh-context, non-author verifier checks the accumulated artifacts against the verbatim spec anchor before delegation four, (o) a one-line ESCALATE request to the user naming the evidence and expected fix, with that step paused until answered. Any drift from those answers means your edit broke a rule.
 
 ---
 
@@ -286,7 +310,7 @@ Honesty about what this skill cannot do:
 
 - **It's policy, not a hard guarantee.** The rules steer the orchestrating model; the enforcement hook makes violations visible at the moment they happen, but nothing physically blocks a wasteful choice. A determined rationalization can still route badly or overrun the attempt budget — the budget and terminal state make a runaway loop a *rule violation* with a defined exit, not an impossibility.
 - **It can't fix the delegation harness.** If your Claude Code subagent spawns drop prompts or carry heavy fixed overhead, the skill can only respond sensibly (the harness-misbehaves recovery path: retry once, go headless, go inline). It cannot make spawning reliable.
-- **It doesn't govern the main conversation.** Your chosen main-loop model is untouched — only delegated work is routed. And subagents don't inherit the skill; the orchestrator must copy the discipline into each prompt, which the skill mandates but cannot force.
+- **It can't change the main conversation's model.** Your chosen main-loop model is untouched — only delegated work is routed. Since v1.4.0 the skill does define *when to ask you* for a main-loop upgrade (the upward-escalation rule), but the switch itself is always yours. And subagents don't inherit the skill; the orchestrator must copy the discipline into each prompt, which the skill mandates but cannot force.
 - **Its judgment is bounded by the task description.** A disguised-hard task can still be under-routed. The consequence rule (including "a cheap result trusted without anyone checking the source is consequence-bearing") narrows this gap; it cannot close it completely.
 
 ---
