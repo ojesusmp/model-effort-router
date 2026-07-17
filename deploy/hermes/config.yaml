@@ -8,7 +8,7 @@
 # ---- Brain (main model): GLM-5.2 via Z.AI provider ----
 model:
   default: "glm-5.2"
-  provider: "zai"          # Hermes built-in provider; api key <- ZAI_API_KEY in .env
+  provider: "zai"          # Hermes built-in Z.AI/GLM provider; api key <- GLM_API_KEY in .env
   context_length: 200000
 
 # ---- Delegation: ALL delegate_task sub-agents run here ----
@@ -18,8 +18,11 @@ delegation:
   model: "deepseek-v4-flash"
   provider: "deepseek"     # api key <- DEEPSEEK_API_KEY in .env
   max_concurrent_children: 3
-  max_spawn_depth: 1        # leaf sub-agents cannot re-delegate; raise to 2 for orchestrator sub-agents
-  orchestrator_enabled: true
+  max_spawn_depth: 2        # nested delegation ON: the brain may spawn ONE orchestrator sub-agent
+                            # that fans out its own leaf workers. All of them run on this same
+                            # delegate model (DeepSeek V4 Flash) — nesting adds depth, not a new model.
+                            # Set back to 1 to force every child to be a leaf (flat delegation only).
+  orchestrator_enabled: true  # allows the "orchestrator" sub-agent role; the router governs WHEN to use it
 
 # ---- Fallback: only if the delegate provider exhausts retries ----
 # Keep this a non-BAA cheap model too — it is for non-confidential work only.

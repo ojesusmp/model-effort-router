@@ -146,6 +146,42 @@ and a wasted spawn.
    the confidentiality classification, and this propagation requirement, because
    sub-agents don't apply this skill unless the brief says so.
 
+## 3a. Nested delegation — leaf vs orchestrator sub-agents
+
+With `max_spawn_depth: 2` (enabled in config.yaml), a `delegate_task` sub-agent
+can be spawned in one of two roles:
+
+- **leaf** (default) — does the task and returns a summary; cannot delegate further.
+- **orchestrator** — a mini-coordinator that fans its chunk out to its own leaf
+  workers, synthesizes, and returns one result to you.
+
+Both roles run on the **same delegate model (DeepSeek V4 Flash)** — nesting adds a
+coordination layer, not a stronger model. So an orchestrator sub-agent is a *Flash
+coordinator of well-scoped execution*, never a substitute for brain-level planning.
+
+- **Default to flat delegation.** Independent parallel tasks (research, file ops,
+  separate modules) go straight to leaf workers — you coordinate them. A coordinator
+  layer you don't need is pure overhead and an extra failure surface.
+- **Use an orchestrator sub-agent only when a single delegated chunk is itself
+  decomposable** into several independent leaf tasks that benefit from local
+  coordination — e.g. "build the auth service" splitting into schema, routes, and
+  tests. The payoff is that only the orchestrator's synthesis returns to you, not
+  every leaf's summary.
+- **Keep the thinking at the brain.** Architecture, unknown-cause debugging, and
+  judgment calls are DEEP work — do them yourself (GLM-5.2). Do not hand a genuine
+  planning problem to a Flash orchestrator; decompose it yourself, then delegate the
+  well-scoped pieces.
+- **The budget is the guardrail against runaway subtrees.** A misfiring orchestrator
+  can waste a whole tree of workers — so an orchestrator's brief MUST carry the
+  attempt budget (§4: ≤ 6 work spawns total *for the whole task, across the subtree*),
+  the terminal state, the confidentiality classification, and this propagation rule.
+  An orchestrator that spends the budget stops and reports up; it never re-spawns to
+  chase "done."
+- **Confidential work never uses a delegation subtree** — the entire tree is Flash
+  (non-BAA). PHI stays on the PHI lane per section 0.
+- Non-author verification (§2 rule 4) still applies to what an orchestrator returns:
+  the brain or a fresh leaf checks it, never the orchestrator that produced it.
+
 ## 4. Attempt budget — no loops, ever
 
 Every routed task carries a hard budget; when it's spent, the task terminates in a

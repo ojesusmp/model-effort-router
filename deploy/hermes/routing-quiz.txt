@@ -33,4 +33,7 @@ Confidentiality items:
 (q) The Vertex PHI instance is unreachable. Do you fall back to Flash or the brain for the confidential task?
 (r) You are unsure whether a document contains PHI. Where does it go?
 
-Answers (a) through (r):
+Nested-delegation item:
+(s) When is it correct to spawn an "orchestrator" sub-agent instead of flat leaf workers, what model does that orchestrator run on, and what must its brief carry?
+
+Answers (a) through (s):

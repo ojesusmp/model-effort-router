@@ -32,6 +32,30 @@ report that overrides are silently ignored
   conversation"), so the `goal`/`context` brief in every `delegate_task` is
   load-bearing, not polish. SKILL.md section 3 makes this a hard rule.
 
+## Nested delegation (max_spawn_depth: 2)
+
+`config.yaml` sets `delegation.max_spawn_depth: 2` and `orchestrator_enabled: true`,
+so the brain can spawn an **orchestrator** sub-agent that fans out its own leaf
+workers (the CEO → VP → workers pattern), instead of only flat `leaf` workers.
+Set it back to `1` to force flat delegation.
+
+The trade-off, honestly: nesting gives you a cleaner brain context (only the
+orchestrator's synthesis returns, not every leaf's) and local coordination of a
+decomposable chunk — but it costs more (a whole subtree burns tokens), adds a
+coordination layer that slows things down, and introduces the "orchestrator goes
+off the rails and wastes a subtree" failure mode. Two things to hold onto:
+
+- The orchestrator runs on the **same delegate model (DeepSeek V4 Flash)** — nesting
+  adds *depth*, not a stronger model. It does **not** unlock DeepSeek V4 Pro or
+  per-task model routing. Genuine planning still belongs at the brain (GLM-5.2).
+- The router is the guardrail: SKILL.md §3a says default to flat delegation, use an
+  orchestrator only for a genuinely decomposable execution chunk, and — critically —
+  propagate the attempt budget (≤ 6 work spawns for the whole task **across the
+  subtree**), the terminal state, and the confidentiality class into the
+  orchestrator's brief. That budget is exactly what prevents the runaway-subtree
+  waste Hermes warns about. Confidential work never uses a delegation subtree (it's
+  all non-BAA Flash).
+
 ## PHI on Hermes — the honest limitation
 
 Both models in the general instance (GLM-5.2, DeepSeek V4 Flash) are **non-BAA**,
@@ -54,37 +78,40 @@ separate boundary the user cannot bypass by pasting. Concretely:
    road. Pair it with input controls where you can (a distinct PHI intake channel,
    and DLP/input filtering if available) so the general instance cannot receive PHI
    in the first place.
-2. **If Hermes itself must handle PHI: a dedicated PHI Hermes instance**
-   (`config.phi.yaml`) whose main model is the Vertex Gemini model, on a separate
-   host/container with **only** Vertex creds, reachable only through a channel that
-   never touches the general instance. Caveats you must resolve before real PHI:
-   - Hermes has **no native Vertex provider**. `config.phi.yaml` reaches Vertex via
-     its OpenAI-compatible endpoint (`base_url` + a gcloud bearer token in
-     `VERTEX_ACCESS_TOKEN`). Bearer tokens are short-lived — you need a refresh
-     mechanism (cron/sidecar re-running `gcloud auth application-default
-     print-access-token`).
-   - **Confirm BAA coverage of that endpoint.** The public Gemini API
-     (`generativelanguage.googleapis.com`) is not Vertex and may be outside your
-     BAA. Only the Vertex `*-aiplatform.googleapis.com` path under your HIPAA
-     project counts.
-   - On that host, unset `GEMINI_API_KEY`/`GOOGLE_API_KEY` so nothing can shadow
-     the Vertex path and silently route PHI to the non-BAA public API.
+2. **A dedicated PHI Hermes instance** (`config.phi.yaml`) whose main model is
+   Gemini 2.5 Flash on Vertex, on a separate host reachable only through a channel
+   that never touches the general instance. Hermes supports Vertex **natively** —
+   provider `vertex` with a top-level `vertex: {project_id, region}` block
+   ([Hermes Vertex guide](https://hermes-agent.nousresearch.com/docs/guides/google-vertex)).
+   Auth is OAuth2 with short-lived tokens that **Hermes auto-refreshes** — no static
+   API key and no manual bearer handling. Requirements before real PHI:
+   - **Use a service account** on the PHI host: `VERTEX_CREDENTIALS_PATH=/path/to/
+     service-account.json` (or ADC via `gcloud auth application-default login`).
+   - **Confirm the Vertex project is under your Google Cloud BAA.** Vertex
+     (`*-aiplatform.googleapis.com`), not the public Gemini API.
+   - **Unset `GOOGLE_API_KEY` / `GEMINI_API_KEY` on that host** — either would select
+     the non-BAA public `gemini` provider instead of `vertex`.
+   - Keep the general instance's keys (`GLM_API_KEY`, `DEEPSEEK_API_KEY`) **off** the
+     PHI host, and the Vertex service account **off** the general host.
 
-Given the friction in option 2, option 1 (PHI on OpenClaw/Vertex, Hermes for
-everything else) is the recommended split.
+Because you route PHI explicitly (you declare it and send it to the PHI instance),
+option 2 gives you a clean, native, BAA-covered Hermes PHI lane. Option 1 (PHI on
+your OpenClaw/Vertex lane, Hermes for everything else) remains equally valid if you
+prefer one Vertex lane shared by both hosts — either way, PHI never touches the
+general Hermes instance.
 
 ## Credentials (in ~/.hermes/.env, never in config.yaml)
 
 ```bash
-# General instance
-ZAI_API_KEY=...
+# General instance host
+GLM_API_KEY=...            # Z.AI / GLM (provider: zai)
 DEEPSEEK_API_KEY=...
 
 # PHI instance host ONLY (and NOT the general host):
 GOOGLE_CLOUD_PROJECT=your-hipaa-project
 GOOGLE_CLOUD_LOCATION=us-central1
-VERTEX_ACCESS_TOKEN=$(gcloud auth application-default print-access-token)   # refresh periodically
-# ensure GEMINI_API_KEY / GOOGLE_API_KEY are UNSET on this host
+VERTEX_CREDENTIALS_PATH=/path/to/service-account.json   # Hermes auto-refreshes the OAuth token
+# ensure GLM_API_KEY / DEEPSEEK_API_KEY / GOOGLE_API_KEY / GEMINI_API_KEY are all UNSET here
 ```
 
 ## Install
@@ -131,6 +158,10 @@ same preference you set, now backed by this skill's discipline.
    user to use the confidential/PHI instance, flag the exposure, (q) neither —
    blocked; never fall back to Flash/brain for PHI, (r) PHI lane — unsure defaults
    to CONFIDENTIAL.
+   **Nesting:** (s) only for a genuinely decomposable execution chunk (default is
+   flat); the orchestrator runs on the same delegate model (DeepSeek V4 Flash), so
+   keep real planning at the brain; its brief must carry the attempt budget,
+   terminal state, and confidentiality classification.
 
 3. **Live routing** (needs keys) — confirm delegated tasks land on DeepSeek V4
    Flash and DEEP tasks stay on the brain; confirm the general instance is never
