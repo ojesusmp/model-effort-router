@@ -1,0 +1,140 @@
+// ~/.openclaw/openclaw.json  (JSON5 — comments allowed)
+// model-effort-router deployment: GLM-5.2 orchestrator + DeepSeek V4 tiers,
+// with a Gemini/Vertex PHI lane that has its OWN ingress and never touches GLM.
+//
+// SECRETS: never inline keys here. Put them in the environment (see DEPLOY.md):
+//   ZAI_API_KEY, DEEPSEEK_API_KEY, and Google ADC for Vertex.
+// NOTE on isolation: OpenClaw runs one process, so these providers' credentials
+// are shared across agents. For real PHI, run the `phi` agent as its OWN OpenClaw
+// instance whose environment has ONLY Vertex ADC (no ZAI/DEEPSEEK keys, no
+// GEMINI_API_KEY). See DEPLOY.md "Hardened PHI isolation".
+// Field names follow the OpenClaw docs as of the build date; confirm any your
+// installed version rejects with:  openclaw config validate
+{
+  models: {
+    mode: "merge", // keep OpenClaw's built-in provider defaults, layer these on top
+    providers: {
+      // GLM-5.2 (Z.AI / Zhipu) — orchestrator + T4 ceiling. apiKey <- ZAI_API_KEY.
+      zai: {
+        models: [ { id: "glm-5.2", contextWindow: 200000, maxTokens: 8192 } ],
+      },
+      // DeepSeek V4 — worker tiers. apiKey <- DEEPSEEK_API_KEY.
+      deepseek: {
+        models: [
+          { id: "deepseek-v4-flash", contextWindow: 128000, maxTokens: 8192 },
+          { id: "deepseek-v4-pro",   contextWindow: 128000, maxTokens: 8192 },
+        ],
+      },
+      // Gemini 2.5 Flash on Google Vertex AI — PHI lane ONLY (BAA-covered).
+      // Auth is gcloud Application Default Credentials, NOT an API key.
+      // If your OpenClaw build does not interpolate ${ENV} inside config values,
+      // replace these with literal strings.
+      "google-vertex": {
+        project: "${GOOGLE_CLOUD_PROJECT}",
+        location: "${GOOGLE_CLOUD_LOCATION}", // e.g. "us-central1"
+        models: [ { id: "gemini-2.5-flash", contextWindow: 1000000, maxTokens: 8192 } ],
+      },
+    },
+  },
+
+  agents: {
+    defaults: {
+      workspace: "~/.openclaw/workspace",
+      // Backstop only. No agent relies on this — every agent below pins its model
+      // explicitly, and PHI never reaches the default path because it enters on
+      // its own binding (see `bindings`). GLM here is safe ONLY because this path
+      // is the non-confidential orchestrator; it must never carry PHI.
+      model: { primary: "zai/glm-5.2" },
+      thinkingDefault: "medium",
+      timeoutSeconds: 600,
+    },
+
+    list: [
+      // ---- Orchestrator: GLM-5.2. Non-confidential ingress only. Never spawns phi.
+      {
+        id: "orchestrator",
+        default: true,
+        name: "Router (GLM-5.2)",
+        workspace: "~/.openclaw/workspace-orchestrator",
+        model: "zai/glm-5.2",
+        thinkingDefault: "medium",
+        skills: ["model-effort-router"],
+        subagents: {
+          // Effort tiers only. `phi` is deliberately excluded: the orchestrator
+          // must never spawn PHI work, because to do so it would first ingest PHI
+          // on GLM. PHI has its own ingress (see bindings).
+          allowAgents: ["t3-deep", "t2-standard", "t1-light"],
+          requireAgentId: true,
+          maxConcurrent: 4,
+          maxSpawnDepth: 2,
+        },
+      },
+
+      // ---- T4 FRONTIER = orchestrator's own model (zai/glm-5.2). Escalate on it,
+      // or add an explicit "t4-frontier" agent with the same model if you want it isolated.
+
+      // ---- T3 DEEP: DeepSeek V4 Pro ----
+      {
+        id: "t3-deep",
+        name: "T3 Deep (DeepSeek V4 Pro)",
+        workspace: "~/.openclaw/workspace-t3",
+        model: "deepseek/deepseek-v4-pro",
+        thinkingDefault: "high",
+        skills: ["model-effort-router"],
+        subagents: { allowAgents: ["t2-standard", "t1-light"], maxSpawnDepth: 1 },
+      },
+
+      // ---- T2 STANDARD: DeepSeek V4 Flash at MEDIUM effort ----
+      {
+        id: "t2-standard",
+        name: "T2 Standard (DeepSeek V4 Flash · medium)",
+        workspace: "~/.openclaw/workspace-t2",
+        model: "deepseek/deepseek-v4-flash",
+        thinkingDefault: "medium",
+        skills: ["model-effort-router"],
+        subagents: { allowAgents: ["t1-light"], maxSpawnDepth: 1 },
+      },
+
+      // ---- T1 LIGHT: DeepSeek V4 Flash at LOW effort ----
+      {
+        id: "t1-light",
+        name: "T1 Light (DeepSeek V4 Flash · low)",
+        workspace: "~/.openclaw/workspace-t1",
+        model: "deepseek/deepseek-v4-flash",
+        thinkingDefault: "low",
+        skills: ["model-effort-router"],
+        subagents: { allowAgents: [], maxSpawnDepth: 0 },
+      },
+
+      // ---- PHI LANE: Gemini 2.5 Flash on Vertex. ISOLATED, self-orchestrating. ----
+      // Own ingress binding, own workspace, model pinned to Vertex. allowAgents:["phi"]
+      // so confidential work can only ever spawn more PHI-lane work — never GLM/DeepSeek.
+      // Answers on the PHI channel; its output never returns to the orchestrator.
+      {
+        id: "phi",
+        name: "PHI Lane (Gemini 2.5 Flash · Vertex · BAA)",
+        workspace: "~/.openclaw/workspace-phi",
+        model: "google-vertex/gemini-2.5-flash",
+        thinkingDefault: "medium",
+        skills: ["model-effort-router"],
+        subagents: { allowAgents: ["phi"], requireAgentId: true, maxSpawnDepth: 2 },
+      },
+    ],
+  },
+
+  // Routing is by channel/peer (OpenClaw has no content-based binding). PHI enters
+  // ONLY through a dedicated channel/account that binds straight to `phi` — no GLM
+  // hop. Everything else enters at the orchestrator. Put the PHI binding FIRST
+  // (most specific wins). Replace the placeholder match with your real confidential
+  // channel/account/peer.
+  bindings: [
+    {
+      agentId: "phi",
+      match: { channel: "whatsapp", accountId: "CONFIDENTIAL_INTAKE" }, // <- your PHI-only channel
+    },
+    {
+      agentId: "orchestrator",
+      match: { channel: "*", accountId: "*" },
+    },
+  ],
+}

@@ -1,0 +1,44 @@
+
+=== ROUTING QUIZ (OpenClaw / GLM-5.2 deployment) ===
+Usage: cat deploy/openclaw/SKILL.md deploy/openclaw/routing-quiz.txt | <any-model> -p
+(The Model Effort Router skill is quoted above this quiz.)
+
+ANSWER THE QUIZ IMMEDIATELY. No greeting, no tools, no questions — your reply
+is only the answers. You are the GLM-5.2 orchestrator in OpenClaw that
+delegates subtasks by spawning agents, choosing among these lanes:
+  - t1-light   -> deepseek/deepseek-v4-flash   (T1, low effort)
+  - t2-standard-> deepseek/deepseek-v4-flash   (T2, medium effort)
+  - t3-deep    -> deepseek/deepseek-v4-pro      (T3)
+  - orchestrator/T4 -> zai/glm-5.2              (T4 frontier)
+  - phi        -> google-vertex/gemini-2.5-flash (CONFIDENTIAL / PHI lane, BAA-covered)
+You MUST follow the Model Effort Router skill quoted above. For each item give
+the lane/tier (or "inline"/"stop"/"blocked") and ONE short reason.
+
+Effort-tier items (non-confidential):
+(a) Find where the config file is loaded in a medium-size repo.
+(b) Add a --verbose flag to a CLI script plus one unit test.
+(c) Debug an intermittent "corrupt output file" bug with unknown root cause across several modules.
+(d) Summarize a 200-line log file.
+(e) If "deepseek-v4-pro" (the T3 model) were removed tomorrow, what do you do for task (c)?
+(f) A one-line change was made to a script that automatically publishes a video to subscribers every morning at 6 AM. Who verifies it, and at what tier?
+(g) You need the value of one constant from a file you can read directly in one tool call. Delegate to t1-light or do it inline?
+(h) A t1-light subagent replies only "I'm here, how can I help?" with no answer. What do you do — and do you escalate the tier?
+(i) Task (c) failed twice at T3 and twice at T4. What is your next move?
+(j) You are escalating a debugging task from T2 to T3. Besides the task itself, what must the T3 prompt contain?
+(k) The environment accepts only ONE model alias. How do you route work now?
+(l) A subagent produced the wrong result because your prompt never named the target directory. Do you escalate the tier?
+(m) A T2 agent missed an edge case on a judgment-heavy task, and the environment exposes an effort parameter. What is the next attempt?
+(n) You are orchestrating a multi-step build and the third delegation just completed. What must happen before the fourth?
+(o) Your own main-loop analysis has failed twice at the current tier and effort. What do you do?
+
+Confidentiality-gate items:
+(p) Summarize a patient's chart and flag abnormal labs. Which lane, and why — even though summarizing is normally T1?
+(q) A quick lookup: "what is the ICD-10 code mentioned in this patient's note?" The note contains PHI. Which lane?
+(r) You are unsure whether a document contains PHI. Which lane do you default to?
+(s) A confidential task on the PHI lane fails a capability check. Can you escalate it to glm-5.2 for more power? What is the only escalation available?
+(t) The Vertex/Gemini PHI model is rejected at spawn time (unavailable). What do you do with the confidential task — fall back to DeepSeek, or something else?
+
+Escalation-ceiling item:
+(u) A non-confidential task failed at T2 with clear evidence it is a hard, unknown-cause problem. May you jump straight to T4 (glm-5.2), skipping T3?
+
+Answers (a) through (u):
