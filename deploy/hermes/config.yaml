@@ -1,0 +1,32 @@
+# ~/.hermes/config.yaml  — GENERAL (non-confidential) instance
+# Brain = GLM-5.2; all delegated sub-agents = DeepSeek V4 Flash.
+# Secrets live in ~/.hermes/.env, NOT here (see DEPLOY-hermes.md).
+# This instance must NEVER receive PHI — both models below are non-BAA.
+# Field names follow the Hermes config docs as of the build date; confirm any
+# your installed version rejects with:  hermes config validate
+
+# ---- Brain (main model): GLM-5.2 via Z.AI provider ----
+model:
+  default: "glm-5.2"
+  provider: "zai"          # Hermes built-in provider; api key <- ZAI_API_KEY in .env
+  context_length: 200000
+
+# ---- Delegation: ALL delegate_task sub-agents run here ----
+# Hermes applies ONE global delegate model (no per-task override exists), so this
+# is the single "Flash tier". Anything Flash can't do escalates UP to the brain.
+delegation:
+  model: "deepseek-v4-flash"
+  provider: "deepseek"     # api key <- DEEPSEEK_API_KEY in .env
+  max_concurrent_children: 3
+  max_spawn_depth: 1        # leaf sub-agents cannot re-delegate; raise to 2 for orchestrator sub-agents
+  orchestrator_enabled: true
+
+# ---- Fallback: only if the delegate provider exhausts retries ----
+# Keep this a non-BAA cheap model too — it is for non-confidential work only.
+fallback_model:
+  provider: "deepseek"
+  model: "deepseek-v4-flash"
+
+# NOTE: DeepSeek V4 Pro has no per-task home on Hermes. To use it you would set
+# delegation.model to it globally (everything becomes Pro) — instead, DEEP work
+# is done at the brain level (GLM-5.2). See SKILL.md section "What Hermes can route".

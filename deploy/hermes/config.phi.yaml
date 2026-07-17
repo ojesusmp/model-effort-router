@@ -1,0 +1,36 @@
+# PHI instance config — becomes ~/.hermes/config.yaml on a SEPARATE PHI-only host.
+# (Keep this filename distinct in the repo; never co-locate it with the general
+#  config.yaml on the same machine — one would overwrite the other.)
+# Confidential work ONLY.
+# Run this as its own Hermes instance on a host/container whose environment has
+# ONLY Vertex credentials — no ZAI_API_KEY, no DEEPSEEK_API_KEY, and no
+# GEMINI_API_KEY/GOOGLE_API_KEY (either would let it reach a non-BAA endpoint).
+#
+# Hermes has NO native Google Vertex provider. Vertex is reached here through its
+# OpenAI-compatible endpoint via base_url + a gcloud bearer token. CONFIRM this
+# path is covered by your Google Cloud BAA before sending real PHI — the public
+# Gemini API (generativelanguage.googleapis.com) is NOT Vertex and may be outside
+# your BAA. If this is fiddly, prefer the OpenClaw `phi` (Vertex) lane instead.
+
+model:
+  default: "google/gemini-2.5-flash"      # Vertex publisher/model id; confirm exact form
+  provider: "custom"
+  # Vertex OpenAI-compatible chat endpoint:
+  base_url: "https://${GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT}/locations/${GOOGLE_CLOUD_LOCATION}/endpoints/openapi"
+  api_key: "${VERTEX_ACCESS_TOKEN}"        # `gcloud auth application-default print-access-token` (short-lived; refresh)
+  api_mode: "chat_completions"
+  context_length: 1000000
+
+# Keep confidential work on-lane: if this instance delegates at all, the delegate
+# must be the SAME Vertex model, so PHI never leaves the BAA boundary.
+delegation:
+  model: "google/gemini-2.5-flash"
+  provider: "custom"
+  base_url: "https://${GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT}/locations/${GOOGLE_CLOUD_LOCATION}/endpoints/openapi"
+  api_key: "${VERTEX_ACCESS_TOKEN}"
+  api_mode: "chat_completions"
+  max_concurrent_children: 2
+  max_spawn_depth: 1
+
+# No fallback_model here: a fallback to any non-BAA provider would defeat the lane.
+# If Vertex is unavailable, confidential work is BLOCKED, not failed over.
