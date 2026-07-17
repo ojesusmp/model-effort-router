@@ -32,7 +32,10 @@
       "google-vertex": {
         project: "${GOOGLE_CLOUD_PROJECT}",
         location: "${GOOGLE_CLOUD_LOCATION}", // e.g. "us-central1"
-        models: [ { id: "gemini-2.5-flash", contextWindow: 1000000, maxTokens: 8192 } ],
+        models: [
+          { id: "gemini-2.5-flash", contextWindow: 1000000, maxTokens: 8192 },
+          { id: "gemini-2.5-pro",   contextWindow: 1000000, maxTokens: 8192 },
+        ],
       },
     },
   },
@@ -106,10 +109,12 @@
         subagents: { allowAgents: [], maxSpawnDepth: 0 },
       },
 
-      // ---- PHI LANE: Gemini 2.5 Flash on Vertex. ISOLATED, self-orchestrating. ----
-      // Own ingress binding, own workspace, model pinned to Vertex. allowAgents:["phi"]
-      // so confidential work can only ever spawn more PHI-lane work — never GLM/DeepSeek.
-      // Answers on the PHI channel; its output never returns to the orchestrator.
+      // ---- PHI LANE: two BAA tiers on Vertex. ISOLATED, self-orchestrating. ----
+      // Own ingress binding, own workspaces, models pinned to Vertex. allowAgents
+      // restricted to the lane itself, so confidential work can only ever spawn more
+      // PHI-lane work — never GLM/DeepSeek. Answers on the PHI channel; output never
+      // returns to the orchestrator. Flash = cheap PHI work; Pro = deep PHI reasoning,
+      // so weak reasoning is never a pretext to move PHI off-lane.
       {
         id: "phi",
         name: "PHI Lane (Gemini 2.5 Flash · Vertex · BAA)",
@@ -117,7 +122,16 @@
         model: "google-vertex/gemini-2.5-flash",
         thinkingDefault: "medium",
         skills: ["model-effort-router"],
-        subagents: { allowAgents: ["phi"], requireAgentId: true, maxSpawnDepth: 2 },
+        subagents: { allowAgents: ["phi", "phi-deep"], requireAgentId: true, maxSpawnDepth: 2 },
+      },
+      {
+        id: "phi-deep",
+        name: "PHI Deep (Gemini 2.5 Pro · Vertex · BAA)",
+        workspace: "~/.openclaw/workspace-phi-deep",
+        model: "google-vertex/gemini-2.5-pro",
+        thinkingDefault: "high",
+        skills: ["model-effort-router"],
+        subagents: { allowAgents: ["phi", "phi-deep"], requireAgentId: true, maxSpawnDepth: 2 },
       },
     ],
   },

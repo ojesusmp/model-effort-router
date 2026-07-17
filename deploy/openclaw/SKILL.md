@@ -22,20 +22,28 @@ is.
   confidential data?** (patient identifiers, clinical detail, anything a
   reasonable person would treat as protected or confidential.) If **yes** — or
   if you are not sure — the task is **CONFIDENTIAL**.
-- **CONFIDENTIAL → route to the PHI lane only:** the `phi` agent, pinned to
-  **Gemini 2.5 Flash on Google Vertex AI** (`google-vertex/gemini-2.5-flash`),
-  which is the only provider here under a signed BAA. Confidential work is
+- **CONFIDENTIAL → route to the PHI lane only:** the Vertex agents — `phi`
+  (**Gemini 2.5 Flash**, cheap PHI work) and `phi-deep` (**Gemini 2.5 Pro**, deep
+  PHI reasoning) — the only providers here under a signed BAA. Confidential work is
   **forbidden** from the GLM and DeepSeek tiers, at any effort, for any reason —
   including "just a quick lookup" and including verification passes. A confidential
   task and every sub-task it spawns stay on the PHI lane.
 - **NON-CONFIDENTIAL → route by effort tier** (section 1 onward) across the GLM
   and DeepSeek tiers as normal.
-- **The PHI lane is a one-model lane.** Gemini 2.5 Flash is the only BAA-covered
-  model, so within confidential work there is no tier ladder — the effort dial is
-  the only escalation (see the effort dial and the adaptation protocol's
-  "only one model available" rule). Never escalate a confidential task *off* the
-  lane to reach a stronger model; a blocked-but-compliant report beats a
-  disclosure.
+- **The PHI lane has its own two-tier ladder.** Light/standard confidential work →
+  `phi` (Flash); deep confidential reasoning (unknown-cause debugging, synthesis,
+  judgment-heavy analysis) → `phi-deep` (Pro). Escalation within confidential work
+  is Flash → Pro, then the effort dial — the same evidence discipline as the main
+  ladder, entirely inside the BAA boundary. Weak reasoning is therefore **never** a
+  reason to move PHI off-lane: the strong model for PHI is Pro, not GLM. Never
+  escalate a confidential task *off* the lane; a blocked-but-compliant report beats
+  a disclosure.
+- **The lane's entry control is deterministic, not conversational.** Where deployed,
+  a DLP-based gate (see DEPLOY.md "Design C" and `deploy/phi-gate/`) inspects
+  traffic at the boundary and fails closed — anything flagged or uncertain stays in
+  the BAA lane, and only cleared or de-identified text may cross to GLM/DeepSeek.
+  This skill's rules are the *backstop* behind that control, not a substitute for
+  it: an LLM's own judgment is never the load-bearing breach boundary.
 - **Splitting is allowed only when it is provably clean.** If a mixed task has a
   part that touches no confidential data (e.g. "look up the config path"), that
   part may route to the effort tiers — but only when the split is unambiguous and
@@ -97,9 +105,9 @@ the dial is inert; route by tier alone.
   capability, the sharpened same-tier retry runs at higher effort — the
   half-step that often saves a whole tier jump. It is still a work attempt
   and spends the same budget.
-- **At the ceiling, effort is the whole ladder.** On a one-model lane (the PHI
-  lane), or at the highest permitted tier, a higher effort dial is the only
-  escalation left — same evidence standard, same budget.
+- **At the ceiling, effort is the whole ladder.** At the highest permitted tier —
+  T4 on the main ladder, `phi-deep` (Pro) on the PHI lane — a higher effort dial
+  is the only escalation left — same evidence standard, same budget.
 
 ## 2. Routing rules
 
@@ -118,7 +126,8 @@ the dial is inert; route by tier alone.
    never an escalation destination. All of it inside the attempt budget below.
    State why you escalated in one line of your report to the user — that line is
    the routing record. **Escalation never crosses the confidentiality gate: a
-   confidential task escalates only via the effort dial on the PHI lane.**
+   confidential task escalates only within the PHI lane — Flash (`phi`) → Pro
+   (`phi-deep`), then the effort dial — never onto GLM/DeepSeek.**
 3. **Shrink before you route.** A task scoped to its smallest correct version
    often drops a whole tier. Split mixed tasks: the search part is T1 even
    when the fix part is T3 — subject to the confidentiality split rule in
@@ -131,7 +140,8 @@ the dial is inert; route by tier alone.
    checked by an equally cheap reviewer is a correlated failure. A cheap
    result that will be trusted without anyone reading the source material
    is consequence-bearing too. **Verification of confidential work stays on the
-   PHI lane** — a non-author verifier is still Gemini 2.5 Flash.
+   PHI lane** — a non-author verifier on Flash for small checks, Pro (`phi-deep`)
+   for large or consequence-bearing ones.
 5. **The main loop delegates — above the overhead line.** When the main model
    is a top-tier model (GLM-5.2 here), doing T1/T2 work inline is the same
    mistake as routing it to T4 — hand it down. But a subagent spawn has real
@@ -187,8 +197,10 @@ or effort:
 - **Alias rejected at spawn time** → treat it as removed: fall back toward
   the nearest existing tier in the same call, trying each distinct alias at
   most once per task, keep the task moving, and correct the table afterward.
-  Never stall a task on a table fix. **On the PHI lane there is no fallback: a
-  rejected Vertex alias blocks the confidential task.**
+  Never stall a task on a table fix. **On the PHI lane, fallback exists only
+  inside the lane: a rejected Flash alias may fall to Pro (both Vertex/BAA); if
+  both Vertex aliases are rejected, the confidential task is blocked — never
+  failed over to GLM/DeepSeek.**
 - **No delegatable models at all** → the router is inert: do the work
   inline, keep the execution discipline and attempt budget, and say so in
   the report. **Confidential work is never done inline off the PHI lane — if the
@@ -255,8 +267,8 @@ wastes a tier; diagnose first, then apply the matching response:
 - **Capability failure** — correct prompt, honest attempt, wrong or
   incomplete result. This — and only this — advances routing rule 2's ladder
   (sharpened same-tier retry, then one tier up — or a direct jump on clear
-  misroute evidence), always carrying the hand-off brief. On the PHI lane the
-  only capability escalation is the effort dial.
+  misroute evidence), always carrying the hand-off brief. On the PHI lane,
+  capability escalation is Flash → Pro, then the effort dial — never off-lane.
 
 A permission denial or policy block is none of these: adjust the approach or
 do it inline (non-confidential only); retrying the identical call verbatim is
@@ -370,7 +382,8 @@ back to the spec.
 - "The cron run produces a corrupt file sometimes, cause unknown" → T3 (`deepseek-v4-pro`).
 - "T3 produced two failed root-cause attempts" → T4 (`glm-5.2`), citing both failures and handing it both attempts' evidence.
 - "T4 failed too" → terminal state: stop and report the blocker; no more spawns.
-- "Summarize this patient's chart and flag abnormal labs" → CONFIDENTIAL → PHI lane (`google-vertex/gemini-2.5-flash`), never GLM/DeepSeek, even though summarizing is normally T1.
+- "Summarize this patient's chart and flag abnormal labs" → CONFIDENTIAL → PHI lane (`phi`, Gemini 2.5 Flash), never GLM/DeepSeek, even though summarizing is normally T1.
+- "Unknown-cause analysis across three patients' longitudinal records" → CONFIDENTIAL and judgment-heavy → `phi-deep` (Gemini 2.5 Pro): deep reasoning stays inside the BAA boundary.
 - "Look up the config path, then de-identify and summarize this clinical note" → split only if clean: the path lookup is T1; the clinical-note step is CONFIDENTIAL and stays on the PHI lane. If any PHI would cross into the lookup, the whole task is CONFIDENTIAL.
 - "Agent failed because the prompt omitted the target directory" → prompt failure: fix the prompt, same tier, no escalation.
 - "T2 missed an edge case on a judgment-heavy task" → sharpened retry at T2 with a higher effort dial — the half-step before T3.

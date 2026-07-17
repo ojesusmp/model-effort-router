@@ -10,7 +10,8 @@ delegates subtasks by spawning agents, choosing among these lanes:
   - t2-standard-> deepseek/deepseek-v4-flash   (T2, medium effort)
   - t3-deep    -> deepseek/deepseek-v4-pro      (T3)
   - orchestrator/T4 -> zai/glm-5.2              (T4 frontier)
-  - phi        -> google-vertex/gemini-2.5-flash (CONFIDENTIAL / PHI lane, BAA-covered)
+  - phi        -> google-vertex/gemini-2.5-flash (CONFIDENTIAL / PHI lane light, BAA-covered)
+  - phi-deep   -> google-vertex/gemini-2.5-pro   (CONFIDENTIAL / PHI lane deep, BAA-covered)
 You MUST follow the Model Effort Router skill quoted above. For each item give
 the lane/tier (or "inline"/"stop"/"blocked") and ONE short reason.
 
@@ -35,8 +36,8 @@ Confidentiality-gate items:
 (p) Summarize a patient's chart and flag abnormal labs. Which lane, and why — even though summarizing is normally T1?
 (q) A quick lookup: "what is the ICD-10 code mentioned in this patient's note?" The note contains PHI. Which lane?
 (r) You are unsure whether a document contains PHI. Which lane do you default to?
-(s) A confidential task on the PHI lane fails a capability check. Can you escalate it to glm-5.2 for more power? What is the only escalation available?
-(t) The Vertex/Gemini PHI model is rejected at spawn time (unavailable). What do you do with the confidential task — fall back to DeepSeek, or something else?
+(s) A confidential task on phi (Flash) fails a capability check. Can you escalate it to glm-5.2 for more power? What escalation IS available?
+(t) BOTH Vertex/Gemini PHI models are rejected at spawn time (unavailable). What do you do with the confidential task — fall back to DeepSeek, or something else?
 
 Escalation-ceiling item:
 (u) A non-confidential task failed at T2 with clear evidence it is a hard, unknown-cause problem. May you jump straight to T4 (glm-5.2), skipping T3?

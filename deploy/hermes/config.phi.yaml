@@ -1,7 +1,8 @@
 # PHI instance config — becomes ~/.hermes/config.yaml on a SEPARATE PHI-only host.
 # (Keep this filename distinct in the repo; never co-locate it with the general
 #  config.yaml on the same machine — one would overwrite the other.)
-# Confidential work ONLY. Main model = Gemini 2.5 Flash on Google Vertex AI (BAA).
+# Confidential work ONLY. Brain = Gemini 2.5 PRO on Vertex (BAA) for deep PHI
+# reasoning; delegates = Gemini 2.5 FLASH on Vertex (BAA) for cheap PHI work.
 #
 # Hermes has a NATIVE `vertex` provider (docs/guides/google-vertex). Auth is OAuth2
 # with short-lived access tokens that Hermes auto-refreshes — no static API key and
@@ -13,7 +14,10 @@
 # project is under your Google Cloud BAA before sending real PHI.
 
 model:
-  default: "google/gemini-2.5-flash"   # exact Vertex model id per Hermes Vertex guide
+  # Brain = the STRONG BAA model, so deep PHI reasoning never needs to leave the
+  # lane. Delegates run on Flash (below) — the same brain/delegate economics as the
+  # general instance, entirely inside the BAA boundary.
+  default: "google/gemini-2.5-pro"
   provider: "vertex"
   context_length: 1000000
 
@@ -23,8 +27,8 @@ vertex:
   project_id: "${GOOGLE_CLOUD_PROJECT}"   # your HIPAA-covered GCP project
   region: "${GOOGLE_CLOUD_LOCATION}"      # e.g. "us-central1" (or "global")
 
-# Keep confidential work on-lane: any delegation here stays on the SAME Vertex
-# model, so PHI never leaves the BAA boundary.
+# Keep confidential work on-lane: delegates run on Vertex Flash (cheap PHI work),
+# the Pro brain handles deep PHI reasoning itself. PHI never leaves the BAA boundary.
 delegation:
   model: "google/gemini-2.5-flash"
   provider: "vertex"

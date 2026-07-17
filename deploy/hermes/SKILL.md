@@ -70,10 +70,17 @@ to make GLM safe for PHI.
   task (a log you're summarizing, a repo you're searching), treat the task as
   CONFIDENTIAL from that moment: halt the delegation, do not send more of it to
   Flash, and follow the accidental-ingress rule above.
-- **The PHI lane is a one-model lane.** Within confidential work there is no tier
-  ladder and no delegation off-lane; a blocked-but-compliant result beats a
-  disclosure. Never escalate a confidential task *off* the lane to reach a
-  stronger model.
+- **The PHI lane has its own brain/delegate split — both BAA.** The PHI instance
+  runs Gemini 2.5 **Pro** as its brain (deep PHI reasoning) and Gemini 2.5
+  **Flash** as its delegate (cheap PHI work), mirroring this instance's
+  economics entirely inside the BAA boundary. So "the PHI model is weak" is never
+  a reason to bring confidential work here: the strong model for PHI is Pro on
+  Vertex, not GLM. Never escalate a confidential task *off* the lane; a
+  blocked-but-compliant result beats a disclosure.
+- **Where deployed, the lane's entry control is deterministic.** A DLP-based gate
+  (see DEPLOY-hermes.md "Design C") inspects traffic at the boundary, fails closed,
+  and only lets cleared or de-identified text reach this non-BAA instance. Your
+  in-brain judgment is the backstop behind that control, never the control itself.
 - **Split only when provably clean.** A part that touches no confidential data
   (e.g. "look up the config path") may be delegated normally — but only if the
   split is unambiguous and no PHI crosses into it. When in doubt, the whole task

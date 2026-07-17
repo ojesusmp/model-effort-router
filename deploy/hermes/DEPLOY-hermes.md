@@ -78,9 +78,9 @@ separate boundary the user cannot bypass by pasting. Concretely:
    road. Pair it with input controls where you can (a distinct PHI intake channel,
    and DLP/input filtering if available) so the general instance cannot receive PHI
    in the first place.
-2. **A dedicated PHI Hermes instance** (`config.phi.yaml`) whose main model is
-   Gemini 2.5 Flash on Vertex, on a separate host reachable only through a channel
-   that never touches the general instance. Hermes supports Vertex **natively** —
+2. **A dedicated PHI Hermes instance** (`config.phi.yaml`) — Gemini 2.5 Pro brain
+   + Gemini 2.5 Flash delegates, both on Vertex — on a separate host reachable only
+   through a channel that never touches the general instance. Hermes supports Vertex **natively** —
    provider `vertex` with a top-level `vertex: {project_id, region}` block
    ([Hermes Vertex guide](https://hermes-agent.nousresearch.com/docs/guides/google-vertex)).
    Auth is OAuth2 with short-lived tokens that **Hermes auto-refreshes** — no static
@@ -167,6 +167,41 @@ same preference you set, now backed by this skill's discipline.
    Flash and DEEP tasks stay on the brain; confirm the general instance is never
    handed PHI. On the PHI instance, confirm it reaches the Vertex endpoint and that
    no `GEMINI_API_KEY` is set.
+
+## Design C: the deterministic PHI gate (the load-bearing control)
+
+The instance split routes traffic; it does not *inspect* it. The load-bearing
+control for keeping PHI off this (non-BAA) instance is a **deterministic DLP
+gate** in front of it — net-new infrastructure, not a Hermes option. Reference
+decision logic with tests: `deploy/phi-gate/`.
+
+- **Fail closed:** any DLP finding, low-confidence span, or detector error → the
+  payload goes to the PHI instance (or is blocked), never to this instance. Only an
+  explicit clean verdict admits text here.
+- **Reversible tokenization** (DLP deterministic/format-preserving encryption)
+  rather than redact-only, so identifiers can be restored inside the BAA boundary
+  after GLM/DeepSeek process the tokenized text — otherwise gated workflows break
+  and users route around the gate.
+- **Gate every crossing:** tool outputs (files, search results) can carry PHI into
+  a session mid-task; scan at each boundary toward this instance, not just at the
+  user's first message.
+- **Audit log + measured recall** (on free-text narrative, Expert-Determination-
+  backed) is what makes this defensible; the in-brain gate in SKILL.md §0 is the
+  backstop, not the control.
+
+On Hermes specifically the gate must sit **in front of the brain** as mandatory
+middleware — the brain cannot be trusted to route its own PHI, because reading the
+message to classify it is already the disclosure.
+
+## PHI instance = Pro brain + Flash delegates
+
+`config.phi.yaml` runs Gemini 2.5 **Pro** as the PHI brain and Gemini 2.5 **Flash**
+as its delegate — the same brain/delegate economics as the general instance, both
+under the Vertex BAA. Deep PHI reasoning happens on Pro *inside* the lane, which
+removes the last legitimate-sounding excuse to move PHI toward GLM ("the PHI model
+is too weak"). Cost note: Pro is priced like a frontier model; it only sees
+confidential traffic, which is the minority, and Flash absorbs the lane's routine
+work.
 
 ## Maintenance
 

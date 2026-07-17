@@ -60,7 +60,8 @@ two-instance split is what makes the credential boundary real.
 | Orchestrator / T4 | `zai/glm-5.2` | Z.AI/Zhipu. |
 | T3 deep | `deepseek/deepseek-v4-pro` | formerly `deepseek-reasoner`. |
 | T1/T2 | `deepseek/deepseek-v4-flash` | formerly `deepseek-chat`. |
-| PHI only | `google-vertex/gemini-2.5-flash` | Vertex AI, BAA-covered. |
+| PHI light | `google-vertex/gemini-2.5-flash` | Vertex AI, BAA-covered. |
+| PHI deep | `google-vertex/gemini-2.5-pro` | Vertex AI, BAA-covered — deep PHI reasoning so PHI never needs GLM. |
 
 ## Credentials (never inline them in the config)
 
@@ -125,9 +126,10 @@ openclaw restart   # or: systemctl --user restart openclaw
    ESCALATE to the user, pause that step.
    **PHI gate:** (p) PHI lane (Vertex Gemini) — sensitivity overrides the T1
    default, (q) PHI lane — the note contains PHI, a lookup does not exempt it,
-   (r) PHI lane — unsure defaults to CONFIDENTIAL, (s) no — never escalate off the
-   lane; the only escalation is the effort dial on Gemini, (t) blocked — do NOT
-   fall back to DeepSeek; report blocked and stop.
+   (r) PHI lane — unsure defaults to CONFIDENTIAL, (s) no — never off-lane; the
+   escalation available is Flash → Pro (`phi-deep`) inside the BAA boundary, then
+   the effort dial, (t) blocked — do NOT fall back to DeepSeek; with both Vertex
+   aliases rejected, report blocked and stop.
    **Ceiling:** (u) no — direct jumps top out at T3; T4 needs a demonstrably
    failed T3 attempt or an explicit user request.
 
@@ -143,6 +145,39 @@ openclaw restart   # or: systemctl --user restart openclaw
    to the **confidential channel** and confirm it lands on `phi` and is answered
    from that lane, and that no GLM/DeepSeek agent ever receives it. Watch
    `openclaw logs` for the spawned `agentId` per task.
+
+## Design C: the deterministic PHI gate (the load-bearing control)
+
+The channel split above routes traffic; it does not *inspect* it. The load-bearing
+control for the GLM/DeepSeek boundary is a **deterministic DLP gate** — net-new
+infrastructure you must stand up, not an OpenClaw config option. A reference
+implementation of its decision logic, with tests, is in `deploy/phi-gate/`.
+
+What it is: a small service in front of the orchestrator (and on every boundary
+crossing toward a non-BAA model) that runs **Google Cloud DLP** inspection inside
+your BAA:
+
+- **Fail closed.** Any finding, any low-confidence span, any detector error or
+  timeout → the payload is treated as PHI and stays in the Vertex lane. Only an
+  explicit clean verdict lets text cross to GLM/DeepSeek. A miss becomes extra
+  Vertex cost, never a breach.
+- **Reversible tokenization, not just redaction.** Use DLP de-identification with
+  deterministic/format-preserving encryption so identifiers become tokens before
+  crossing to GLM/DeepSeek, and are re-identified *inside* the BAA boundary on the
+  way back. Redact-only breaks workflows that need the identifiers in the answer —
+  and broken workflows are what push users to bypass gates.
+- **Gate every crossing, not just ingress.** PHI can enter mid-task through tool
+  output (a file read, a search result). Scan payloads at each hand-off toward a
+  non-BAA agent, not only the user's first message.
+- **Audit log.** Every decision (clean/PHI/error, info-types found, route taken)
+  goes to an append-only log — that log plus DLP's measured recall is what you show
+  a regulator. Back the recall figure with Expert Determination and re-test it on
+  production traffic; the number that matters is recall on free-text narrative,
+  not on structured identifiers.
+
+The skill's in-model confidentiality rules remain the backstop *behind* this gate.
+Until the gate is deployed and measured, treat the setup as staging: the channel
+split + skill rules reduce risk but are not, alone, an OCR-defensible control.
 
 ## Maintenance
 
